@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Reflection;
-using System.Runtime.ExceptionServices;
 using System.Runtime.Loader;
 using System.Text.RegularExpressions;
 
@@ -75,13 +74,12 @@ internal sealed record DomainProject(string ProjectFile, string Module, string M
         {
             await process.WaitForExitAsync(cancellationToken);
         }
-        catch (OperationCanceledException exception)
+        catch (OperationCanceledException)
         {
             await StopBuildAsync(process);
-            ExceptionDispatchInfo.Throw(exception);
         }
 
-
+        cancellationToken.ThrowIfCancellationRequested();
         var standardOutput = await output;
         var standardError = await errors;
         if (process.ExitCode != 0)
