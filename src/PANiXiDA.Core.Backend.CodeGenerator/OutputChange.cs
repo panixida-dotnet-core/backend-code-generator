@@ -6,9 +6,9 @@ internal sealed record OutputChange(string Path, byte[]? Before, byte[]? After)
         ? GeneratedFileAction.Deleted
         : Before is null ? GeneratedFileAction.Created : GeneratedFileAction.Replaced;
 
-    internal static void ApplyAll(IReadOnlyList<OutputChange> changes)
+    internal static void ApplyAll(IEnumerable<OutputChange> changes)
     {
-        var applied = new List<OutputChange>(changes.Count);
+        var applied = new List<OutputChange>();
         try
         {
             foreach (var change in changes)

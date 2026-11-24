@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Runtime.Loader;
 using System.Text.RegularExpressions;
 
@@ -66,27 +67,21 @@ internal sealed record DomainProject(string ProjectFile, string Module, string M
             }
         };
 
-        using var process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException($"Could not build '{ProjectFile}'.");
+        using var process = new Process { StartInfo = startInfo };
+        process.Start();
         var output = process.StandardOutput.ReadToEndAsync();
         var errors = process.StandardError.ReadToEndAsync();
         try
         {
             await process.WaitForExitAsync(cancellationToken);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException exception)
         {
-            try
-            {
-                process.Kill(entireProcessTree: true);
-            }
-            catch (InvalidOperationException) when (process.HasExited)
-            {
-            }
-
-            await process.WaitForExitAsync(CancellationToken.None);
-            throw;
+            await StopBuildAsync(process);
+            ExceptionDispatchInfo.Throw(exception);
         }
+
+
         var standardOutput = await output;
         var standardError = await errors;
         if (process.ExitCode != 0)
@@ -95,6 +90,20 @@ internal sealed record DomainProject(string ProjectFile, string Module, string M
             throw new InvalidOperationException($"Could not build '{ProjectFile}'.{Environment.NewLine}{buildOutput}");
         }
 
+        return LoadAssembly(FindTargetPath(standardOutput));
+    }
+
+    internal static async Task StopBuildAsync(Process process)
+    {
+        if (!process.HasExited)
+        {
+            process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync(CancellationToken.None);
+        }
+    }
+
+    internal string FindTargetPath(string standardOutput)
+    {
         const StringSplitOptions LineOptions = StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries;
         var targetPath = standardOutput.Split('\n', LineOptions)
             .LastOrDefault();
@@ -103,6 +112,11 @@ internal sealed record DomainProject(string ProjectFile, string Module, string M
             throw new InvalidOperationException($"Could not locate the build output of '{ProjectFile}'.");
         }
 
+        return targetPath;
+    }
+
+    internal static Assembly LoadAssembly(string targetPath)
+    {
         var context = new DomainLoadContext(targetPath);
         try
         {

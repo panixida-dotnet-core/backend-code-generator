@@ -17,12 +17,12 @@ internal static class EmbeddedTemplates
 
     internal static Stream Open(string path)
     {
-        if (s_resources.TryGetValue(path, out var name) && s_assembly.GetManifestResourceStream(name) is { } stream)
+        if (!s_resources.TryGetValue(path, out var name))
         {
-            return stream;
+            throw new InvalidOperationException($"Bundled template '{path}' was not found.");
         }
 
-        throw new InvalidOperationException($"Bundled template '{path}' was not found.");
+        return s_assembly.GetManifestResourceStream(name)!;
     }
 
     internal static string Read(string path)

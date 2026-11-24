@@ -213,9 +213,8 @@ internal sealed record ResourceModel(
 
     private static Type GetId(Type entity, string baseTypeName)
     {
-        var baseType = entity.BaseType;
-        if (baseType is null
-            || !baseType.IsGenericType
+        var baseType = entity.BaseType!;
+        if (!baseType.IsGenericType
             || baseType.GetGenericTypeDefinition().FullName != baseTypeName)
         {
             var baseName = baseTypeName == AggregateRootType ? "AggregateRoot" : "Entity";
@@ -265,7 +264,7 @@ internal sealed record ResourceModel(
                 $"'{aggregate.FullName}' requires exactly one public '{name}' method with the expected Result type.");
     }
 
-    private static CrudField DescribeField(PropertyInfo property, NullabilityInfoContext nullability)
+    internal static CrudField DescribeField(PropertyInfo property, NullabilityInfoContext nullability)
     {
         var declaredType = property.PropertyType;
         var type = Nullable.GetUnderlyingType(declaredType) ?? declaredType;
@@ -298,7 +297,7 @@ internal sealed record ResourceModel(
             }
         }
 
-        var propertyName = $"{property.DeclaringType?.FullName}.{property.Name}";
+        var propertyName = $"{property.DeclaringType!.FullName}.{property.Name}";
         var components = GetComponents(type, nullability, propertyName);
         if (components is not null)
         {
@@ -395,7 +394,7 @@ internal sealed record ResourceModel(
     private static bool IsGenericResult(Type type) =>
         type.IsGenericType && type.GetGenericTypeDefinition().FullName == GenericResultType;
 
-    private static CrudField[] BindParameters(
+    internal static CrudField[] BindParameters(
         MethodInfo method, IReadOnlyList<CrudField> fields, NullabilityInfoContext nullability, Type? leadingId = null)
     {
         var parameters = method.GetParameters();
@@ -420,7 +419,7 @@ internal sealed record ResourceModel(
                 || !MatchesParameter(field, underlying, optional)
                 || bound.Contains(field))
             {
-                var parameterName = $"{method.DeclaringType?.Name}.{method.Name}({parameter.Name})";
+                var parameterName = $"{method.DeclaringType!.Name}.{method.Name}({parameter.Name})";
                 throw new InvalidOperationException(
                     $"'{parameterName}' must match a writable domain property and its input type.");
             }
@@ -442,7 +441,7 @@ internal sealed record ResourceModel(
             && field.Type == (optional ? scalar + "?" : scalar);
     }
 
-    private static CrudField[] SelectProjection(
+    internal static CrudField[] SelectProjection(
         IReadOnlyList<string>? names, IReadOnlyList<CrudField> fields, string setting)
     {
         if (names is null || !names.Contains("Id") || names.Distinct(StringComparer.Ordinal).Count() != names.Count)

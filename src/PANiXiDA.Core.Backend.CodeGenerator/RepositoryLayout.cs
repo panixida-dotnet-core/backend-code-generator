@@ -9,15 +9,23 @@ internal sealed record RepositoryLayout(string Root, string ConfigurationDirecto
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         var fullPath = Path.GetFullPath(path, relativeTo);
         var relativePath = Path.GetRelativePath(root, fullPath);
+        ValidateRelativePath(path, relativePath);
+        if (relativePath != ".")
+        {
+            EnsureNoLinks(fullPath, relativePath);
+        }
+
+        return fullPath;
+    }
+
+    internal static void ValidateRelativePath(string path, string relativePath)
+    {
         if (relativePath == ".."
             || relativePath.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
             || Path.IsPathRooted(relativePath))
         {
             throw new InvalidOperationException($"'{path}' must resolve inside the repository.");
         }
-
-        EnsureNoLinks(fullPath, relativePath);
-        return fullPath;
     }
 
     private static void EnsureNoLinks(string fullPath, string relativePath)
@@ -25,7 +33,7 @@ internal sealed record RepositoryLayout(string Root, string ConfigurationDirecto
         // Paths supplied in configuration must stay inside the repository on disk as well.
         var remaining = relativePath;
         var currentPath = fullPath;
-        while (remaining != "." && remaining.Length > 0)
+        while (remaining.Length > 0)
         {
             if ((File.Exists(currentPath) || Directory.Exists(currentPath))
                 && File.GetAttributes(currentPath).HasFlag(FileAttributes.ReparsePoint))
@@ -33,8 +41,8 @@ internal sealed record RepositoryLayout(string Root, string ConfigurationDirecto
                 throw new InvalidOperationException($"'{currentPath}' points to a symbolic link or junction.");
             }
 
-            currentPath = Path.GetDirectoryName(currentPath) ?? string.Empty;
-            remaining = Path.GetDirectoryName(remaining) ?? string.Empty;
+            currentPath = Path.GetDirectoryName(currentPath)!;
+            remaining = Path.GetDirectoryName(remaining)!;
         }
     }
 }

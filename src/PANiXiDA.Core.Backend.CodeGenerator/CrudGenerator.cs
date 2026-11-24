@@ -15,7 +15,7 @@ internal static class CrudGenerator
         IReadOnlyList<JobSettings> jobs,
         CancellationToken cancellationToken)
     {
-        var catalog = LoadCatalog();
+        var catalog = LoadCatalog(EmbeddedTemplates.Paths);
         var parsedTemplates = new Dictionary<string, Template>(StringComparer.Ordinal);
         var domains = new Dictionary<string, Assembly>(StringComparer.OrdinalIgnoreCase);
         var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -78,7 +78,7 @@ internal static class CrudGenerator
         {
             foreach (var domain in domains.Values)
             {
-                AssemblyLoadContext.GetLoadContext(domain)?.Unload();
+                AssemblyLoadContext.GetLoadContext(domain)!.Unload();
             }
         }
 
@@ -141,8 +141,7 @@ internal static class CrudGenerator
                 "overwriteExisting and deleteGenerated cannot both be true in one job.");
         }
 
-        if (job.Templates?.Values.Any(string.IsNullOrWhiteSpace) == true
-            || job.OutputDirectory?.Values.Any(string.IsNullOrWhiteSpace) == true)
+        if (HasEmptyPath(job.Templates) || HasEmptyPath(job.OutputDirectory))
         {
             throw new InvalidOperationException("Template and output directory overrides must be nonempty paths.");
         }
@@ -164,6 +163,9 @@ internal static class CrudGenerator
             }
         }
     }
+
+    private static bool HasEmptyPath(IReadOnlyDictionary<string, string>? overrides) =>
+        overrides is not null && overrides.Values.Any(string.IsNullOrWhiteSpace);
 
     private static void RegisterRoute(Dictionary<string, string> routes, string route, string aggregate)
     {
@@ -268,10 +270,10 @@ internal static class CrudGenerator
         }
     }
 
-    private static Dictionary<string, TemplateArtifact> LoadCatalog()
+    internal static Dictionary<string, TemplateArtifact> LoadCatalog(IEnumerable<string> paths)
     {
         var catalog = new Dictionary<string, TemplateArtifact>(StringComparer.Ordinal);
-        foreach (var path in EmbeddedTemplates.Paths.Where(path => path.EndsWith(".cs.sbn", StringComparison.Ordinal)))
+        foreach (var path in paths.Where(path => path.EndsWith(".cs.sbn", StringComparison.Ordinal)))
         {
             var separator = path.IndexOf('/');
             if (separator < 0
@@ -303,6 +305,6 @@ internal static class CrudGenerator
     private static string RelativePath(RepositoryLayout repository, string path) =>
         Path.GetRelativePath(repository.Root, path);
 
-    private sealed record TemplateArtifact(
+    internal sealed record TemplateArtifact(
         string Name, string Layer, string RelativePath, string SourcePath, bool Child);
 }

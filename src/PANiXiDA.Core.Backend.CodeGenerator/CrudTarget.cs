@@ -21,14 +21,16 @@ internal sealed record CrudTarget(DomainProject Project, string Feature, string 
 
     internal string DefaultDirectory(string layer)
     {
-        var moduleDirectory = Path.GetDirectoryName(Path.GetDirectoryName(Project.ProjectFile))
+        var domainDirectory = Path.GetDirectoryName(Project.ProjectFile)!;
+        if (layer == "Domain")
+        {
+            return Path.Combine(domainDirectory, Feature);
+        }
+
+        var moduleDirectory = Path.GetDirectoryName(domainDirectory)
             ?? throw new InvalidOperationException($"'{Project.ProjectFile}' has no module directory.");
         var projectName = $"{Project.Module}.{layer}";
         var projectDirectory = Path.Combine(moduleDirectory, projectName);
-        if (layer == "Domain")
-        {
-            return Path.Combine(Path.GetDirectoryName(Project.ProjectFile) ?? projectDirectory, Feature);
-        }
 
         if (!File.Exists(Path.Combine(projectDirectory, $"{projectName}.csproj")))
         {

@@ -10,5 +10,7 @@
         <PackageVersion Include="xunit.v3" Version="3.2.2" />
         <PackageVersion Include="Shouldly" Version="4.3.0" />
         <PackageVersion Include="Scriban" Version="7.6.1" />
+        <PackageVersion Include="PANiXiDA.Core.Domain" Version="4.1.1" />
+        <PackageVersion Include="PANiXiDA.Core.ResultPattern" Version="1.0.4" />
     </ItemGroup>
 </Project>
