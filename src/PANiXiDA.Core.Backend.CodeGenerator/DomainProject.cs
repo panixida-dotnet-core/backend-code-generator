@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using System.Text.RegularExpressions;
 
@@ -47,7 +48,10 @@ internal sealed record DomainProject(string ProjectFile, string Module, string M
     {
         var startInfo = new ProcessStartInfo
         {
-            FileName = "dotnet",
+            FileName = ResolveDotnetHost(
+                Environment.GetEnvironmentVariable("DOTNET_HOST_PATH"),
+                RuntimeEnvironment.GetRuntimeDirectory(),
+                OperatingSystem.IsWindows()),
             WorkingDirectory = repositoryRoot,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -68,8 +72,8 @@ internal sealed record DomainProject(string ProjectFile, string Module, string M
 
         using var process = new Process { StartInfo = startInfo };
         process.Start();
-        var output = process.StandardOutput.ReadToEndAsync();
-        var errors = process.StandardError.ReadToEndAsync();
+        var output = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
+        var errors = process.StandardError.ReadToEndAsync(CancellationToken.None);
         try
         {
             await process.WaitForExitAsync(cancellationToken);
@@ -89,6 +93,17 @@ internal sealed record DomainProject(string ProjectFile, string Module, string M
         }
 
         return LoadAssembly(FindTargetPath(standardOutput));
+    }
+
+    internal static string ResolveDotnetHost(string? configuredPath, string runtimeDirectory, bool isWindows)
+    {
+        if (Path.IsPathFullyQualified(configuredPath.AsSpan()))
+        {
+            return configuredPath!;
+        }
+
+        var fileName = isWindows ? "dotnet.exe" : "dotnet";
+        return Path.GetFullPath(Path.Combine(runtimeDirectory, "..", "..", "..", fileName));
     }
 
     internal static async Task StopBuildAsync(Process process)

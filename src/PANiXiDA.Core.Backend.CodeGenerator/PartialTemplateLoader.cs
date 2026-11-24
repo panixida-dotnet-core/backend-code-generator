@@ -29,10 +29,10 @@ internal sealed class PartialTemplateLoader(
     {
         if (Path.IsPathFullyQualified(templatePath))
         {
-            return await File.ReadAllTextAsync(templatePath);
+            return await File.ReadAllTextAsync(templatePath, context.CancellationToken);
         }
 
         using var reader = new StreamReader(EmbeddedTemplates.Open(templatePath));
-        return await reader.ReadToEndAsync();
+        return await reader.ReadToEndAsync(context.CancellationToken);
     }
 }

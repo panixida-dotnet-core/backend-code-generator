@@ -32,6 +32,28 @@ public sealed class DomainProjectTests
         Should.Throw<InvalidOperationException>(() => project.Locate(name!));
     }
 
+    [Theory(DisplayName = "Use an absolute SDK host path on Windows and Unix")]
+    [InlineData(null, true, "dotnet.exe")]
+    [InlineData("relative/dotnet", false, "dotnet")]
+    public void ResolvesHostFromRuntime(string? configured, bool isWindows, string hostName)
+    {
+        using var backend = new ScratchBackend(withFixture: false);
+
+        var host = DomainProject.ResolveDotnetHost(configured, backend.FullPath("shared/Microsoft.NETCore.App/10.0"),
+            isWindows);
+
+        host.ShouldBe(backend.FullPath(hostName));
+    }
+
+    [Fact(DisplayName = "Prefer the absolute SDK host provided by the caller")]
+    public void UsesConfiguredHost()
+    {
+        using var backend = new ScratchBackend(withFixture: false);
+        var configured = backend.FullPath("sdk/dotnet");
+
+        DomainProject.ResolveDotnetHost(configured, backend.FullPath("shared/runtime/version"), false).ShouldBe(configured);
+    }
+
     [Fact(DisplayName = "Report build errors from the Domain project")]
     public async Task ReportsBuildFailure()
     {

@@ -2,9 +2,18 @@ namespace PANiXiDA.Core.Backend.CodeGenerator;
 
 internal sealed record OutputChange(string Path, byte[]? Before, byte[]? After)
 {
-    internal GeneratedFileAction Action => After is null
-        ? GeneratedFileAction.Deleted
-        : Before is null ? GeneratedFileAction.Created : GeneratedFileAction.Replaced;
+    internal GeneratedFileAction Action
+    {
+        get
+        {
+            if (After is null)
+            {
+                return GeneratedFileAction.Deleted;
+            }
+
+            return Before is null ? GeneratedFileAction.Created : GeneratedFileAction.Replaced;
+        }
+    }
 
     internal static void ApplyAll(IEnumerable<OutputChange> changes)
     {

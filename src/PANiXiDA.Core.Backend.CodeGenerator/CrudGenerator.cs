@@ -15,74 +15,117 @@ internal static class CrudGenerator
         IReadOnlyList<JobSettings> jobs,
         CancellationToken cancellationToken)
     {
-        var catalog = LoadCatalog(EmbeddedTemplates.Paths);
-        var parsedTemplates = new Dictionary<string, Template>(StringComparer.Ordinal);
-        var domains = new Dictionary<string, Assembly>(StringComparer.OrdinalIgnoreCase);
-        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var routes = new Dictionary<string, string>(StringComparer.Ordinal);
-        var changes = new List<OutputChange>();
-        try
+        using var plan = new GenerationPlan(repository);
+        foreach (var job in jobs)
         {
-            foreach (var job in jobs)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                ValidateJob(job, catalog);
-                var artifacts = job.GeneratedFiles.Select(name => catalog[name]).ToArray();
-                var rootArtifacts = artifacts.Where(artifact => !artifact.Child).ToArray();
-                var childArtifacts = artifacts.Where(artifact => artifact.Child).ToArray();
-                var childNames = childArtifacts.Select(artifact => artifact.Name).ToArray();
-                var project = DomainProject.Find(repository, job.PathToModels);
-                var assembly = job.DeleteGenerated
-                        ? null
-                        : await GetDomainAsync(repository, project, domains, cancellationToken);
-                foreach (var settings in job.Models)
-                {
-                    if (settings is null)
-                    {
-                        throw new InvalidOperationException("The models array cannot contain null entries.");
-                    }
-
-                    var target = project.Locate(settings.Aggregate);
-                    if (rootArtifacts.Length > 0)
-                    {
-                        var model = assembly is null ? null : ResourceModel.Create(assembly, target, settings);
-                        Plan(target, target.Aggregate, model, job, rootArtifacts);
-                    }
-
-                    if (childArtifacts.Length == 0)
-                    {
-                        continue;
-                    }
-
-                    if (settings.Children is not { Count: > 0 })
-                    {
-                        throw new InvalidOperationException($"'{target.Aggregate}' requires children for Child artifacts.");
-                    }
-
-                    foreach (var child in settings.Children)
-                    {
-                        var childTarget = target.ForChild(child);
-                        var model = assembly is null
-                            ? null
-                            : ResourceModel.CreateChild(assembly, target, childTarget, settings.Route, child, childNames);
-                        Plan(childTarget, $"{target.Aggregate}.{child.Collection}", model, job, childArtifacts);
-                    }
-                }
-            }
-
             cancellationToken.ThrowIfCancellationRequested();
-            OutputChange.ApplyAll(changes);
-            return changes;
+            await plan.AddJobAsync(job, cancellationToken);
         }
-        finally
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var changes = plan.Changes;
+        OutputChange.ApplyAll(changes);
+        return changes;
+    }
+
+    private sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
+    {
+        private readonly Dictionary<string, TemplateArtifact> _catalog = LoadCatalog(EmbeddedTemplates.Paths);
+        private readonly Dictionary<string, Template> _parsedTemplates = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, Assembly> _domains = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _paths = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string> _routes = new(StringComparer.Ordinal);
+
+        internal List<OutputChange> Changes { get; } = [];
+
+        internal async Task AddJobAsync(JobSettings job, CancellationToken cancellationToken)
         {
-            foreach (var domain in domains.Values)
+            ValidateJob(job, _catalog);
+            var artifacts = job.GeneratedFiles.Select(name => _catalog[name]).ToArray();
+            var rootArtifacts = artifacts.Where(artifact => !artifact.Child).ToArray();
+            var childArtifacts = artifacts.Where(artifact => artifact.Child).ToArray();
+            var project = DomainProject.Find(repository, job.PathToModels);
+            var assembly = job.DeleteGenerated
+                ? null
+                : await GetDomainAsync(project, cancellationToken);
+
+            foreach (var settings in job.Models)
+            {
+                AddModel(job, project, assembly, settings, rootArtifacts, childArtifacts);
+            }
+        }
+
+        public void Dispose()
+        {
+            foreach (var domain in _domains.Values)
             {
                 AssemblyLoadContext.GetLoadContext(domain)!.Unload();
             }
         }
 
-        void Plan(
+        private async Task<Assembly> GetDomainAsync(DomainProject project, CancellationToken cancellationToken)
+        {
+            if (!_domains.TryGetValue(project.ProjectFile, out var assembly))
+            {
+                assembly = await project.BuildAsync(repository.Root, cancellationToken);
+                _domains.Add(project.ProjectFile, assembly);
+            }
+
+            return assembly;
+        }
+
+        private void AddModel(
+            JobSettings job,
+            DomainProject project,
+            Assembly? assembly,
+            ResourceSettings? settings,
+            TemplateArtifact[] rootArtifacts,
+            TemplateArtifact[] childArtifacts)
+        {
+            if (settings is null)
+            {
+                throw new InvalidOperationException("The models array cannot contain null entries.");
+            }
+
+            var target = project.Locate(settings.Aggregate);
+            if (rootArtifacts.Length > 0)
+            {
+                var model = assembly is null ? null : ResourceModel.Create(assembly, target, settings);
+                AddArtifacts(target, target.Aggregate, model, job, rootArtifacts);
+            }
+
+            if (childArtifacts.Length == 0)
+            {
+                return;
+            }
+
+            AddChildren(target, assembly, settings, job, childArtifacts);
+        }
+
+        private void AddChildren(
+            CrudTarget target,
+            Assembly? assembly,
+            ResourceSettings settings,
+            JobSettings job,
+            TemplateArtifact[] artifacts)
+        {
+            if (settings.Children is not { Count: > 0 })
+            {
+                throw new InvalidOperationException($"'{target.Aggregate}' requires children for Child artifacts.");
+            }
+
+            var childNames = artifacts.Select(artifact => artifact.Name).ToArray();
+            foreach (var child in settings.Children)
+            {
+                var childTarget = target.ForChild(child);
+                var model = assembly is null
+                    ? null
+                    : ResourceModel.CreateChild(assembly, target, childTarget, settings.Route, child, childNames);
+                AddArtifacts(childTarget, $"{target.Aggregate}.{child.Collection}", model, job, artifacts);
+            }
+        }
+
+        private void AddArtifacts(
             CrudTarget target, string owner, ResourceModel? model, JobSettings job, TemplateArtifact[] artifacts)
         {
             if (model is not null && artifacts.Any(artifact => artifact.Name is "Endpoints" or "ChildEndpoints"))
@@ -90,40 +133,25 @@ internal static class CrudGenerator
                 var route = model.Child is null
                     ? model.Route
                     : model.Route.Replace(model.Child.RouteId + ":guid", "parentId:guid", StringComparison.Ordinal);
-                RegisterRoute(routes, route, owner);
+                RegisterRoute(_routes, route, owner);
             }
 
             foreach (var artifact in artifacts)
             {
                 var path = GetOutputPath(repository, target, job, artifact);
-                if (!paths.Add(path) || Directory.Exists(path))
+                if (!_paths.Add(path) || Directory.Exists(path))
                 {
                     throw new InvalidOperationException(
-                        $"'{RelativePath(repository, path)}' is not a unique file path.");
+                        $"'{GetRelativePath(repository, path)}' is not a unique file path.");
                 }
 
-                var change = PlanChange(repository, owner, model, job, artifact, path, parsedTemplates);
+                var change = PlanChange(repository, owner, model, job, artifact, path, _parsedTemplates);
                 if (change is not null)
                 {
-                    changes.Add(change);
+                    Changes.Add(change);
                 }
             }
         }
-    }
-
-    private static async Task<Assembly> GetDomainAsync(
-        RepositoryLayout repository,
-        DomainProject project,
-        Dictionary<string, Assembly> domains,
-        CancellationToken cancellationToken)
-    {
-        if (!domains.TryGetValue(project.ProjectFile, out var assembly))
-        {
-            assembly = await project.BuildAsync(repository.Root, cancellationToken);
-            domains.Add(project.ProjectFile, assembly);
-        }
-
-        return assembly;
     }
 
     private static void ValidateJob(JobSettings? job, IReadOnlyDictionary<string, TemplateArtifact> catalog)
@@ -146,21 +174,20 @@ internal static class CrudGenerator
             throw new InvalidOperationException("Template and output directory overrides must be nonempty paths.");
         }
 
-        var names = job.GeneratedFiles.Concat(job.OutputDirectory?.Keys ?? []);
-        foreach (var name in names)
+        var invalidArtifact = job.GeneratedFiles.Concat(job.OutputDirectory?.Keys ?? [])
+            .Where(name => name is null || !catalog.ContainsKey(name))
+            .Select(name => name ?? string.Empty)
+            .FirstOrDefault();
+        if (invalidArtifact is not null)
         {
-            if (name is null || !catalog.ContainsKey(name))
-            {
-                throw new InvalidOperationException($"Unknown generated file '{name}'.");
-            }
+            throw new InvalidOperationException($"Unknown generated file '{invalidArtifact}'.");
         }
 
-        foreach (var name in job.Templates?.Keys ?? [])
+        var invalidTemplate = (job.Templates?.Keys ?? [])
+            .FirstOrDefault(name => !catalog.ContainsKey(name) && !PartialTemplateLoader.IsBundled(name));
+        if (invalidTemplate is not null)
         {
-            if (!catalog.ContainsKey(name) && !PartialTemplateLoader.IsBundled(name))
-            {
-                throw new InvalidOperationException($"Unknown template '{name}'.");
-            }
+            throw new InvalidOperationException($"Unknown template '{invalidTemplate}'.");
         }
     }
 
@@ -203,7 +230,7 @@ internal static class CrudGenerator
         Dictionary<string, Template> parsedTemplates)
     {
         var previous = File.Exists(path) ? File.ReadAllBytes(path) : null;
-        var label = RelativePath(repository, path);
+        var label = GetRelativePath(repository, path);
         var header = $"// Scaffolded by CodeGenerator for {owner}.";
         if (job.DeleteGenerated)
         {
@@ -302,7 +329,7 @@ internal static class CrudGenerator
         return catalog;
     }
 
-    private static string RelativePath(RepositoryLayout repository, string path) =>
+    private static string GetRelativePath(RepositoryLayout repository, string path) =>
         Path.GetRelativePath(repository.Root, path);
 
     internal sealed record TemplateArtifact(

@@ -69,14 +69,10 @@ internal sealed record ResourceModel(
 
         return MakeModel(
             target,
-            target.Domain,
             id,
             settings.Route,
-            fields,
-            BindParameters(create, fields, nullability),
-            BindParameters(update, fields, nullability),
-            settings.DetailsFields,
-            settings.ListFields);
+            (fields, BindParameters(create, fields, nullability), BindParameters(update, fields, nullability)),
+            (settings.DetailsFields, settings.ListFields));
     }
 
     internal static ResourceModel CreateChild(
@@ -138,14 +134,10 @@ internal sealed record ResourceModel(
             settings.DeleteMethod);
         return MakeModel(
             target,
-            entity.Namespace!,
             id,
             $"{parentRoute}/{{{routeId}:guid}}/{settings.Route}",
-            fields,
-            createFields,
-            updateFields,
-            settings.DetailsFields,
-            settings.ListFields,
+            (fields, createFields, updateFields),
+            (settings.DetailsFields, settings.ListFields),
             child);
     }
 
@@ -183,31 +175,27 @@ internal sealed record ResourceModel(
 
     private static ResourceModel MakeModel(
         CrudTarget target,
-        string domain,
         Type id,
         string route,
-        CrudField[] fields,
-        CrudField[] createFields,
-        CrudField[] updateFields,
-        IReadOnlyList<string> details,
-        IReadOnlyList<string> list,
+        (CrudField[] All, CrudField[] Create, CrudField[] Update) fields,
+        (IReadOnlyList<string> Details, IReadOnlyList<string> List) projections,
         ChildModel? child = null)
     {
-        var readableFields = fields.Prepend(new CrudField("Id", nameof(Guid), false, null, null, false)).ToArray();
+        var readableFields = fields.All.Prepend(new CrudField("Id", nameof(Guid), false, null, null, false)).ToArray();
 
         return new ResourceModel(
             target.Project.Module,
             target.Project.ModuleName,
             target.Feature,
             target.Resource,
-            domain,
+            id.Namespace!,
             id.Name,
             route,
-            fields,
-            createFields,
-            updateFields,
-            SelectProjection(details, readableFields, "detailsFields"),
-            SelectProjection(list, readableFields, "listFields"),
+            fields.All,
+            fields.Create,
+            fields.Update,
+            SelectProjection(projections.Details, readableFields, "detailsFields"),
+            SelectProjection(projections.List, readableFields, "listFields"),
             child);
     }
 
@@ -274,27 +262,10 @@ internal sealed record ResourceModel(
             return new CrudField(property.Name, optional ? scalar + "?" : scalar, optional, null, null, false);
         }
 
-        var value = type.GetProperty("Value") ?? type.GetProperty("Name");
-        if (type.IsPublic
-            && !type.IsGenericType
-            && value?.GetMethod is { IsPublic: true, IsStatic: false }
-            && s_scalarNames.TryGetValue(value.PropertyType, out scalar))
+        var singleValue = DescribeSingleValue(property.Name, type, optional);
+        if (singleValue is not null)
         {
-            var factoryInput = optional && value.PropertyType.IsValueType
-                ? typeof(Nullable<>).MakeGenericType(value.PropertyType)
-                : value.PropertyType;
-            if (HasFactory(type, factoryInput, allowNullableResult: optional))
-            {
-                var maxLength = type.GetField("MaxLength", BindingFlags.Public | BindingFlags.Static);
-                var valueMember = optional && type.IsValueType ? $"Value.{value.Name}" : value.Name;
-                return new CrudField(
-                    property.Name,
-                    optional ? scalar + "?" : scalar,
-                    optional,
-                    $"global::{type.FullName}",
-                    valueMember,
-                    maxLength is { IsLiteral: true } && maxLength.FieldType == typeof(int));
-            }
+            return singleValue;
         }
 
         var propertyName = $"{property.DeclaringType!.FullName}.{property.Name}";
@@ -314,6 +285,36 @@ internal sealed record ResourceModel(
 
         throw new InvalidOperationException(
             $"'{propertyName}' requires a scalar or a value object with a matching Create factory.");
+    }
+
+    private static CrudField? DescribeSingleValue(string name, Type type, bool optional)
+    {
+        var value = type.GetProperty("Value") ?? type.GetProperty("Name");
+        if (!type.IsPublic
+            || type.IsGenericType
+            || value?.GetMethod is not { IsPublic: true, IsStatic: false }
+            || !s_scalarNames.TryGetValue(value.PropertyType, out var scalar))
+        {
+            return null;
+        }
+
+        var factoryInput = optional && value.PropertyType.IsValueType
+            ? typeof(Nullable<>).MakeGenericType(value.PropertyType)
+            : value.PropertyType;
+        if (!HasFactory(type, factoryInput, allowNullableResult: optional))
+        {
+            return null;
+        }
+
+        var maxLength = type.GetField("MaxLength", BindingFlags.Public | BindingFlags.Static);
+        var valueMember = optional && type.IsValueType ? $"Value.{value.Name}" : value.Name;
+        return new CrudField(
+            name,
+            optional ? scalar + "?" : scalar,
+            optional,
+            $"global::{type.FullName}",
+            valueMember,
+            maxLength is { IsLiteral: true } && maxLength.FieldType == typeof(int));
     }
 
     private static ValueComponent[]? GetComponents(Type type, NullabilityInfoContext nullability, string propertyName)
