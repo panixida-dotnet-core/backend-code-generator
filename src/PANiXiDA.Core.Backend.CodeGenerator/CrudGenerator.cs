@@ -40,7 +40,7 @@ internal static class CrudGenerator
 
         internal async Task AddJobAsync(JobSettings job, CancellationToken cancellationToken)
         {
-            ValidateJob(job, _catalog);
+            ValidateJob(job);
             var artifacts = job.GeneratedFiles.Select(name => _catalog[name]).ToArray();
             var rootArtifacts = artifacts.Where(artifact => !artifact.Child).ToArray();
             var childArtifacts = artifacts.Where(artifact => artifact.Child).ToArray();
@@ -153,7 +153,7 @@ internal static class CrudGenerator
             }
         }
 
-        private static void ValidateJob(JobSettings? job, IReadOnlyDictionary<string, TemplateArtifact> catalog)
+        private void ValidateJob(JobSettings? job)
         {
             if (job is null
                 || job.Models is not { Count: > 0 }
@@ -174,7 +174,7 @@ internal static class CrudGenerator
             }
 
             var invalidArtifact = job.GeneratedFiles.Concat(job.OutputDirectory?.Keys ?? [])
-                .Where(name => name is null || !catalog.ContainsKey(name))
+                .Where(name => name is null || !_catalog.ContainsKey(name))
                 .Select(name => name ?? string.Empty)
                 .FirstOrDefault();
             if (invalidArtifact is not null)
@@ -183,7 +183,7 @@ internal static class CrudGenerator
             }
 
             var invalidTemplate = (job.Templates?.Keys ?? [])
-                .FirstOrDefault(name => !catalog.ContainsKey(name) && !PartialTemplateLoader.IsBundled(name));
+                .FirstOrDefault(name => !_catalog.ContainsKey(name) && !PartialTemplateLoader.IsBundled(name));
             if (invalidTemplate is not null)
             {
                 throw new InvalidOperationException($"Unknown template '{invalidTemplate}'.");

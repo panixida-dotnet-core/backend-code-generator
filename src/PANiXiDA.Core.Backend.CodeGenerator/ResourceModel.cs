@@ -348,11 +348,11 @@ internal sealed record ResourceModel(
     }
 
     private static ValueComponent[]? BindComponents(
-        IReadOnlyList<ParameterInfo> parameters,
+        ParameterInfo[] parameters,
         IReadOnlyList<PropertyInfo> properties,
         NullabilityInfoContext nullability)
     {
-        var components = new List<ValueComponent>(parameters.Count);
+        var components = new List<ValueComponent>(parameters.Length);
         foreach (var parameter in parameters)
         {
             var property = properties.SingleOrDefault(candidate =>

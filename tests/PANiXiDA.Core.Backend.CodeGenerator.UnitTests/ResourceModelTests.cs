@@ -1,10 +1,11 @@
-using Samples.Catalog.Domain.Models;
+using PANiXiDA.Core.Backend.CodeGenerator.UnitTests.Domain.Models;
 
 namespace PANiXiDA.Core.Backend.CodeGenerator.UnitTests;
 
 public sealed class ResourceModelTests
 {
-    private static readonly DomainProject s_project = new("Samples.Catalog.Domain.csproj", "Samples.Catalog", "Catalog");
+    private static readonly DomainProject s_project = new("Samples.Catalog.Domain.csproj",
+        "PANiXiDA.Core.Backend.CodeGenerator.UnitTests", "UnitTests");
 
     [Fact(DisplayName = "Ignore identity, navigation properties, indexers, and properties without two accessors")]
     public void ReadsOnlyWritableScalarFields()

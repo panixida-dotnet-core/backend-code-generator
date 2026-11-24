@@ -51,21 +51,21 @@ internal sealed class FieldSamples
 
     public AmbiguousFactory AmbiguousFactory { get; init; } = default!;
 
-    public void WrongName(int missing) => _ = missing;
+    public static void WrongName(int missing) => _ = missing;
 
-    public void WrongScalarType(object count) => _ = count;
+    public static void WrongScalarType(object count) => _ = count;
 
-    public void WrongScalarNullability(int? count) => _ = count;
+    public static void WrongScalarNullability(int? count) => _ = count;
 
-    public void DuplicateBinding(int count, int Count) => _ = count + Count;
+    public static void DuplicateBinding(int count, int Count) => _ = count + Count;
 
-    public void WrongCompoundType(string? compoundStruct) => _ = compoundStruct;
+    public static void WrongCompoundType(string? compoundStruct) => _ = compoundStruct;
 
-    public void WrongCompoundNullability(CompoundStruct compoundStruct) => _ = compoundStruct;
+    public static void WrongCompoundNullability(CompoundStruct compoundStruct) => _ = compoundStruct;
 
-    public void WrongLeadingId(string id) => _ = id;
+    public static void WrongLeadingId(string id) => _ = id;
 
-    public void NoParameters()
+    public static void NoParameters()
     {
     }
 }
@@ -74,7 +74,14 @@ internal sealed class PrivateValue;
 
 public sealed class GenericValue<T>;
 
-public sealed class WriteOnlyValue { public int Value { set => _ = value; } }
+public sealed class WriteOnlyValue
+{
+    private int _value;
+
+    public int Value { set => _value = value; }
+
+    public int Read() => _value;
+}
 
 public sealed class PrivateGetterValue { public int Value { private get; set; } }
 
