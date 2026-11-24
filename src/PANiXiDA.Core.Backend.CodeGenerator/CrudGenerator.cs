@@ -152,149 +152,152 @@ internal static class CrudGenerator
                 }
             }
         }
-    }
 
-    private static void ValidateJob(JobSettings? job, IReadOnlyDictionary<string, TemplateArtifact> catalog)
-    {
-        if (job is null
-            || job.Models is not { Count: > 0 }
-            || job.GeneratedFiles is not { Count: > 0 })
+        private static void ValidateJob(JobSettings? job, IReadOnlyDictionary<string, TemplateArtifact> catalog)
         {
-            throw new InvalidOperationException("Each job requires nonempty models and generatedFiles arrays.");
-        }
-
-        if (job.OverwriteExisting && job.DeleteGenerated)
-        {
-            throw new InvalidOperationException(
-                "overwriteExisting and deleteGenerated cannot both be true in one job.");
-        }
-
-        if (HasEmptyPath(job.Templates) || HasEmptyPath(job.OutputDirectory))
-        {
-            throw new InvalidOperationException("Template and output directory overrides must be nonempty paths.");
-        }
-
-        var invalidArtifact = job.GeneratedFiles.Concat(job.OutputDirectory?.Keys ?? [])
-            .Where(name => name is null || !catalog.ContainsKey(name))
-            .Select(name => name ?? string.Empty)
-            .FirstOrDefault();
-        if (invalidArtifact is not null)
-        {
-            throw new InvalidOperationException($"Unknown generated file '{invalidArtifact}'.");
-        }
-
-        var invalidTemplate = (job.Templates?.Keys ?? [])
-            .FirstOrDefault(name => !catalog.ContainsKey(name) && !PartialTemplateLoader.IsBundled(name));
-        if (invalidTemplate is not null)
-        {
-            throw new InvalidOperationException($"Unknown template '{invalidTemplate}'.");
-        }
-    }
-
-    private static bool HasEmptyPath(IReadOnlyDictionary<string, string>? overrides) =>
-        overrides is not null && overrides.Values.Any(string.IsNullOrWhiteSpace);
-
-    private static void RegisterRoute(Dictionary<string, string> routes, string route, string aggregate)
-    {
-        if (!routes.TryAdd(route, aggregate) && routes[route] != aggregate)
-        {
-            throw new InvalidOperationException($"The route '{route}' is configured for more than one aggregate.");
-        }
-    }
-
-    private static string GetOutputPath(
-        RepositoryLayout repository,
-        CrudTarget target,
-        JobSettings job,
-        TemplateArtifact artifact)
-    {
-        var file = artifact.RelativePath.Replace("__Resource__", target.Resource, StringComparison.Ordinal)
-            .Replace("__Feature__", target.Feature, StringComparison.Ordinal);
-        if (job.OutputDirectory?.TryGetValue(artifact.Name, out var configuredDirectory) == true)
-        {
-            var expanded = target.ExpandOutputDirectory(configuredDirectory);
-            var destination = repository.ResolvePath(expanded, repository.Root);
-            return repository.ResolvePath(Path.Combine(destination, Path.GetFileName(file)), repository.Root);
-        }
-
-        return repository.ResolvePath(Path.Combine(target.DefaultDirectory(artifact.Layer), file), repository.Root);
-    }
-
-    private static OutputChange? PlanChange(
-        RepositoryLayout repository,
-        string owner,
-        ResourceModel? model,
-        JobSettings job,
-        TemplateArtifact artifact,
-        string path,
-        Dictionary<string, Template> parsedTemplates)
-    {
-        var previous = File.Exists(path) ? File.ReadAllBytes(path) : null;
-        var label = GetRelativePath(repository, path);
-        var header = $"// Scaffolded by CodeGenerator for {owner}.";
-        if (job.DeleteGenerated)
-        {
-            if (previous is null)
+            if (job is null
+                || job.Models is not { Count: > 0 }
+                || job.GeneratedFiles is not { Count: > 0 })
             {
-                return null;
+                throw new InvalidOperationException("Each job requires nonempty models and generatedFiles arrays.");
             }
 
-            var firstLine = Encoding.UTF8.GetString(previous).Split('\n', 2)[0].Trim('\uFEFF', '\r');
-            if (firstLine != header)
+            if (job.OverwriteExisting && job.DeleteGenerated)
             {
-                throw new InvalidOperationException($"Cannot delete '{label}': its scaffold marker does not match.");
+                throw new InvalidOperationException(
+                    "overwriteExisting and deleteGenerated cannot both be true in one job.");
             }
 
-            return new OutputChange(path, previous, null);
-        }
-
-        if (previous is not null && !job.OverwriteExisting)
-        {
-            throw new InvalidOperationException(
-                $"Cannot replace '{label}': it already exists and overwriteExisting is false.");
-        }
-
-        var templatePath = job.Templates?.TryGetValue(artifact.Name, out var overridePath) == true
-            ? repository.ResolvePath(overridePath, repository.ConfigurationDirectory)
-            : artifact.SourcePath;
-        var partials = new PartialTemplateLoader(repository, job.Templates);
-        var source = Render(templatePath, model, parsedTemplates, partials);
-        return new OutputChange(path, previous, Encoding.UTF8.GetBytes($"{header}\n\n{source}"));
-    }
-
-    private static string Render(
-        string path,
-        ResourceModel? model,
-        Dictionary<string, Template> templates,
-        PartialTemplateLoader partials)
-    {
-        if (!templates.TryGetValue(path, out var template))
-        {
-            var contents = Path.IsPathFullyQualified(path) ? File.ReadAllText(path) : EmbeddedTemplates.Read(path);
-            template = Template.Parse(contents, path);
-            if (template.HasErrors)
+            if (HasEmptyPath(job.Templates) || HasEmptyPath(job.OutputDirectory))
             {
-                throw new InvalidOperationException(string.Join(Environment.NewLine, template.Messages));
+                throw new InvalidOperationException("Template and output directory overrides must be nonempty paths.");
             }
 
-            templates.Add(path, template);
+            var invalidArtifact = job.GeneratedFiles.Concat(job.OutputDirectory?.Keys ?? [])
+                .Where(name => name is null || !catalog.ContainsKey(name))
+                .Select(name => name ?? string.Empty)
+                .FirstOrDefault();
+            if (invalidArtifact is not null)
+            {
+                throw new InvalidOperationException($"Unknown generated file '{invalidArtifact}'.");
+            }
+
+            var invalidTemplate = (job.Templates?.Keys ?? [])
+                .FirstOrDefault(name => !catalog.ContainsKey(name) && !PartialTemplateLoader.IsBundled(name));
+            if (invalidTemplate is not null)
+            {
+                throw new InvalidOperationException($"Unknown template '{invalidTemplate}'.");
+            }
         }
 
-        var context = new TemplateContext
+        private static bool HasEmptyPath(IReadOnlyDictionary<string, string>? overrides) =>
+            overrides is not null && overrides.Values.Any(string.IsNullOrWhiteSpace);
+
+        private static void RegisterRoute(Dictionary<string, string> routes, string route, string aggregate)
         {
-            StrictVariables = true,
-            EnableRelaxedMemberAccess = false,
-            TemplateLoader = partials
-        };
-        context.PushGlobal(new ScriptObject { ["model"] = model });
-        try
-        {
-            return template.Render(context).ReplaceLineEndings("\n").TrimEnd() + "\n";
+            if (!routes.TryAdd(route, aggregate) && routes[route] != aggregate)
+            {
+                throw new InvalidOperationException($"The route '{route}' is configured for more than one aggregate.");
+            }
         }
-        catch (ScriptRuntimeException exception)
+
+        private static string GetOutputPath(
+            RepositoryLayout repository,
+            CrudTarget target,
+            JobSettings job,
+            TemplateArtifact artifact)
         {
-            throw new InvalidOperationException($"Could not render template '{path}': {exception.Message}", exception);
+            var file = artifact.RelativePath.Replace("__Resource__", target.Resource, StringComparison.Ordinal)
+                .Replace("__Feature__", target.Feature, StringComparison.Ordinal);
+            if (job.OutputDirectory?.TryGetValue(artifact.Name, out var configuredDirectory) == true)
+            {
+                var expanded = target.ExpandOutputDirectory(configuredDirectory);
+                var destination = repository.ResolvePath(expanded, repository.Root);
+                return repository.ResolvePath(Path.Combine(destination, Path.GetFileName(file)), repository.Root);
+            }
+
+            return repository.ResolvePath(Path.Combine(target.DefaultDirectory(artifact.Layer), file), repository.Root);
         }
+
+        private static OutputChange? PlanChange(
+            RepositoryLayout repository,
+            string owner,
+            ResourceModel? model,
+            JobSettings job,
+            TemplateArtifact artifact,
+            string path,
+            Dictionary<string, Template> parsedTemplates)
+        {
+            var previous = File.Exists(path) ? File.ReadAllBytes(path) : null;
+            var label = GetRelativePath(repository, path);
+            var header = $"// Scaffolded by CodeGenerator for {owner}.";
+            if (job.DeleteGenerated)
+            {
+                if (previous is null)
+                {
+                    return null;
+                }
+
+                var firstLine = Encoding.UTF8.GetString(previous).Split('\n', 2)[0].Trim('\uFEFF', '\r');
+                if (firstLine != header)
+                {
+                    throw new InvalidOperationException($"Cannot delete '{label}': its scaffold marker does not match.");
+                }
+
+                return new OutputChange(path, previous, null);
+            }
+
+            if (previous is not null && !job.OverwriteExisting)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot replace '{label}': it already exists and overwriteExisting is false.");
+            }
+
+            var templatePath = job.Templates?.TryGetValue(artifact.Name, out var overridePath) == true
+                ? repository.ResolvePath(overridePath, repository.ConfigurationDirectory)
+                : artifact.SourcePath;
+            var partials = new PartialTemplateLoader(repository, job.Templates);
+            var source = Render(templatePath, model, parsedTemplates, partials);
+            return new OutputChange(path, previous, Encoding.UTF8.GetBytes($"{header}\n\n{source}"));
+        }
+
+        private static string Render(
+            string path,
+            ResourceModel? model,
+            Dictionary<string, Template> templates,
+            PartialTemplateLoader partials)
+        {
+            if (!templates.TryGetValue(path, out var template))
+            {
+                var contents = Path.IsPathFullyQualified(path) ? File.ReadAllText(path) : EmbeddedTemplates.Read(path);
+                template = Template.Parse(contents, path);
+                if (template.HasErrors)
+                {
+                    throw new InvalidOperationException(string.Join(Environment.NewLine, template.Messages));
+                }
+
+                templates.Add(path, template);
+            }
+
+            var context = new TemplateContext
+            {
+                StrictVariables = true,
+                EnableRelaxedMemberAccess = false,
+                TemplateLoader = partials
+            };
+            context.PushGlobal(new ScriptObject { ["model"] = model });
+            try
+            {
+                return template.Render(context).ReplaceLineEndings("\n").TrimEnd() + "\n";
+            }
+            catch (ScriptRuntimeException exception)
+            {
+                throw new InvalidOperationException($"Could not render template '{path}': {exception.Message}", exception);
+            }
+        }
+
+        private static string GetRelativePath(RepositoryLayout repository, string path) =>
+            Path.GetRelativePath(repository.Root, path);
     }
 
     internal static Dictionary<string, TemplateArtifact> LoadCatalog(IEnumerable<string> paths)
@@ -328,9 +331,6 @@ internal static class CrudGenerator
 
         return catalog;
     }
-
-    private static string GetRelativePath(RepositoryLayout repository, string path) =>
-        Path.GetRelativePath(repository.Root, path);
 
     internal sealed record TemplateArtifact(
         string Name, string Layer, string RelativePath, string SourcePath, bool Child);
