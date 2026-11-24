@@ -16,9 +16,9 @@
     <File Path="version.json" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/PANiXiDA.Core.DotnetBackend.CodeGenerator/PANiXiDA.Core.DotnetBackend.CodeGenerator.csproj" />
+    <Project Path="src/PANiXiDA.Core.Backend.CodeGenerator/PANiXiDA.Core.Backend.CodeGenerator.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/PANiXiDA.Core.DotnetBackend.CodeGenerator.UnitTests/PANiXiDA.Core.DotnetBackend.CodeGenerator.UnitTests.csproj" />
+    <Project Path="tests/PANiXiDA.Core.Backend.CodeGenerator.UnitTests/PANiXiDA.Core.Backend.CodeGenerator.UnitTests.csproj" />
   </Folder>
 </Solution>

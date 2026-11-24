@@ -1,0 +1,64 @@
+{{~
+    repository_feature = model.feature
+    if model.child
+        repository_feature = model.child.parent_feature
+    end
+~}}
+{{~ if model.child ~}}
+using {{ model.child.parent_domain }};
+using {{ model.child.parent_domain }}.Abstractions;
+{{~ else ~}}
+using {{ model.domain }}.Abstractions;
+{{~ end ~}}
+
+namespace {{ model.module }}.Application.{{ model.feature }}.Write.Create;
+
+public sealed class Create{{ model.resource }}Handler(I{{ repository_feature }}Repository repository)
+    : ICommandHandler<Create{{ model.resource }}Command, Result<Guid>>{{ if model.child }}, IRequireTransaction{{ end }}
+{
+    public {{ if model.child }}async {{ end }}Task<Result<Guid>> HandleAsync(
+        Create{{ model.resource }}Command command,
+        CancellationToken cancellationToken)
+    {
+        {{~
+            fields = model.create_fields
+            if model.child
+                failure = "Result.Failure<Guid>"
+                with_id = false
+                include "LoadParent.sbn"
+                fail_start = "Result.Failure<Guid>("
+                fail_end = ")"
+                result_name = "created"
+                factory = "parent." + model.child.create_method
+            else
+                fail_start = "Task.FromResult(Result.Failure<Guid>("
+                fail_end = "))"
+                result_name = "entityResult"
+                factory = "global::" + model.domain + "." + model.resource + ".Create"
+            end
+            include "BindCompoundValues.sbn"
+        ~}}
+        var {{ result_name }} = {{ factory }}(
+        {{- for field in fields
+            argument = field.composite ? field.local_name + "Value" : "command." + field.name
+        }}
+            {{ argument }}{{ if !for.last }},{{ end -}}
+        {{ end -}}
+        );
+
+        {{~ if model.child ~}}
+        return created.IsSuccess
+            ? Result.Success(created.Value.Value)
+            : Result.Failure<Guid>(created.Errors);
+        {{~ else ~}}
+        if (entityResult.IsFailure)
+        {
+            return Task.FromResult(Result.Failure<Guid>(entityResult.Errors));
+        }
+
+        repository.Add(entityResult.Value);
+
+        return Task.FromResult(Result.Success(entityResult.Value.Id.Value));
+        {{~ end ~}}
+    }
+}

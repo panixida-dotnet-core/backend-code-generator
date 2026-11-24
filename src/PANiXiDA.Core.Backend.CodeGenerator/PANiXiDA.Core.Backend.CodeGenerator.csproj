@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <IsPackable>true</IsPackable>
 
@@ -16,5 +16,10 @@
         <PackageReference Include="Nerdbank.GitVersioning">
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
+        <PackageReference Include="Scriban" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <EmbeddedResource Include="Templates/**/*.sbn" WithCulture="false" LogicalName="Templates/%(RecursiveDir)%(Filename)%(Extension)" />
     </ItemGroup>
 </Project>

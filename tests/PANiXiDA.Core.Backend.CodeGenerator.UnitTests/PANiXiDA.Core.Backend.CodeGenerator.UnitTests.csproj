@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <OutputType>Exe</OutputType>
     </PropertyGroup>
@@ -11,11 +11,15 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\src\PANiXiDA.Core.Backend.CodeGenerator\PANiXiDA.Core.Backend.CodeGenerator.csproj" />
+        <ProjectReference Include="..\..\src\PANiXiDA.Core.Backend.CodeGenerator\PANiXiDA.Core.Backend.CodeGenerator.csproj" />
     </ItemGroup>
 
     <ItemGroup>
         <Using Include="Xunit" />
         <Using Include="Shouldly" />
+    </ItemGroup>
+    <ItemGroup>
+        <Compile Remove="Fixtures/**/*.cs" />
+        <Content Include="Fixtures/**/*" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 </Project>
