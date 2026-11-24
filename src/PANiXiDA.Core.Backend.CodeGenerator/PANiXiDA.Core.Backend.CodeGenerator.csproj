@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <IsPackable>true</IsPackable>
+
+        <AssemblyName>PANiXiDA.Core.Backend.CodeGenerator</AssemblyName>
+
+        <PackageId>PANiXiDA.Core.Backend.CodeGenerator</PackageId>
+        <Description>A Scriban-based code generator that scaffolds editable C# CRUD code for .NET backends from domain aggregates and their child entity collections.</Description>
+        <PackageTags>CodeGeneration;Scaffolding;CRUD;DotNet;AspNetCore;EFCore;DDD;AggregateRoot;Scriban</PackageTags>
+
+        <RepositoryUrl>https://github.com/panixida-dotnet-core/backend-code-generator</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/panixida-dotnet-core/backend-code-generator</PackageProjectUrl>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Nerdbank.GitVersioning">
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+    </ItemGroup>
+</Project>
