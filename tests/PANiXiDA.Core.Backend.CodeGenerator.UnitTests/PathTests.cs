@@ -62,7 +62,7 @@ public sealed class PathTests
     {
         using var backend = new ScratchBackend(withFixture: false);
         var module = new DomainProject(backend.FullPath("Domain/Test.Domain.csproj"), "Test", "Test");
-        var target = new CrudTarget(module, "Products", "Product");
+        var target = new CodeTarget(module, "Products", "Product");
 
         var missing = Should.Throw<InvalidOperationException>(() => target.DefaultDirectory("Application"));
         missing.Message.ShouldContain("Test.Application");
@@ -71,7 +71,7 @@ public sealed class PathTests
         Should.Throw<InvalidOperationException>(() => target.DefaultDirectory("Other"));
 
         var rootProject = new DomainProject(Path.Combine(Path.GetPathRoot(backend.Root)!, "Test.Domain.csproj"), "Test", "Test");
-        Should.Throw<InvalidOperationException>(() => new CrudTarget(rootProject, "Products", "Product")
+        Should.Throw<InvalidOperationException>(() => new CodeTarget(rootProject, "Products", "Product")
             .DefaultDirectory("Application"));
     }
 

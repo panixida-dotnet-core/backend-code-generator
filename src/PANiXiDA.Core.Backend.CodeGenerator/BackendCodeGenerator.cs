@@ -57,7 +57,7 @@ public static class BackendCodeGenerator
             return [];
         }
 
-        var changes = await CrudGenerator.RunJobsAsync(repository, jobs, cancellationToken);
+        var changes = await Generation.CodeGenerator.RunJobsAsync(repository, jobs, cancellationToken);
         return [.. changes.Select(change => new GeneratedFile(Path.GetRelativePath(root, change.Path), change.Action))];
     }
 }

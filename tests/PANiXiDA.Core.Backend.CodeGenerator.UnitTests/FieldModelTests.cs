@@ -88,7 +88,7 @@ public sealed class FieldModelTests
     [InlineData(new[] { "Id", "Missing" }, "Unknown property 'Missing'")]
     public void ValidatesProjection(string[]? names, string message)
     {
-        var fields = new[] { new CrudField("Id", "Guid", false, null, null, false), Describe(nameof(FieldSamples.Count)) };
+        var fields = new[] { new CodeField("Id", "Guid", false, null, null, false), Describe(nameof(FieldSamples.Count)) };
 
         var exception = Should.Throw<InvalidOperationException>(() =>
             ResourceModel.SelectProjection(names, fields, "detailsFields"));
@@ -96,6 +96,6 @@ public sealed class FieldModelTests
         exception.Message.ShouldContain(message);
     }
 
-    private static CrudField Describe(string name) =>
+    private static CodeField Describe(string name) =>
         ResourceModel.DescribeField(typeof(FieldSamples).GetProperty(name)!, new NullabilityInfoContext());
 }

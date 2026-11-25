@@ -11,11 +11,11 @@ internal sealed record ResourceModel(
     string Domain,
     string Id,
     string Route,
-    IReadOnlyList<CrudField> Fields,
-    IReadOnlyList<CrudField> CreateFields,
-    IReadOnlyList<CrudField> UpdateFields,
-    IReadOnlyList<CrudField> DetailsFields,
-    IReadOnlyList<CrudField> ListFields,
+    IReadOnlyList<CodeField> Fields,
+    IReadOnlyList<CodeField> CreateFields,
+    IReadOnlyList<CodeField> UpdateFields,
+    IReadOnlyList<CodeField> DetailsFields,
+    IReadOnlyList<CodeField> ListFields,
     ChildModel? Child = null)
 {
     private const string AggregateRootType = "PANiXiDA.Core.Domain.AggregateRoots.AggregateRoot`1";
@@ -42,9 +42,9 @@ internal sealed record ResourceModel(
         [typeof(DateTimeOffset)] = nameof(DateTimeOffset)
     };
 
-    public CrudField[] CreateValidationFields => [.. CreateFields.Where(item => item.HasValidation)];
+    public CodeField[] CreateValidationFields => [.. CreateFields.Where(item => item.HasValidation)];
 
-    public CrudField[] UpdateValidationFields => [.. UpdateFields.Where(item => item.HasValidation)];
+    public CodeField[] UpdateValidationFields => [.. UpdateFields.Where(item => item.HasValidation)];
 
     public bool HasCompoundFields => Fields.Any(item => item.Composite);
 
@@ -52,7 +52,7 @@ internal sealed record ResourceModel(
 
     public bool HasCompoundList => ListFields.Any(item => item.Composite);
 
-    internal static ResourceModel Create(Assembly domainAssembly, CrudTarget target, ResourceSettings settings)
+    internal static ResourceModel Create(Assembly domainAssembly, CodeTarget target, ResourceSettings settings)
     {
         if (!IsRoute(settings.Route))
         {
@@ -77,8 +77,8 @@ internal sealed record ResourceModel(
 
     internal static ResourceModel CreateChild(
         Assembly domainAssembly,
-        CrudTarget parent,
-        CrudTarget target,
+        CodeTarget parent,
+        CodeTarget target,
         string parentRoute,
         ChildSettings settings,
         IReadOnlyList<string> artifacts)
@@ -141,7 +141,7 @@ internal sealed record ResourceModel(
             child);
     }
 
-    private static Type GetAggregate(Assembly domainAssembly, CrudTarget target)
+    private static Type GetAggregate(Assembly domainAssembly, CodeTarget target)
     {
         var aggregate = domainAssembly.GetType(target.Aggregate);
         if (aggregate is not { IsPublic: true, IsClass: true, IsAbstract: false, IsGenericType: false })
@@ -153,7 +153,7 @@ internal sealed record ResourceModel(
         return aggregate;
     }
 
-    private static CrudField[] GetFields(Type entity, NullabilityInfoContext nullability) =>
+    private static CodeField[] GetFields(Type entity, NullabilityInfoContext nullability) =>
         [.. entity.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
             .Where(property => property.Name != "Id"
                 && property.GetMethod is { IsPublic: true }
@@ -174,14 +174,14 @@ internal sealed record ResourceModel(
             .Distinct()];
 
     private static ResourceModel MakeModel(
-        CrudTarget target,
+        CodeTarget target,
         Type id,
         string route,
-        (CrudField[] All, CrudField[] Create, CrudField[] Update) fields,
+        (CodeField[] All, CodeField[] Create, CodeField[] Update) fields,
         (IReadOnlyList<string> Details, IReadOnlyList<string> List) projections,
         ChildModel? child = null)
     {
-        var readableFields = fields.All.Prepend(new CrudField("Id", nameof(Guid), false, null, null, false)).ToArray();
+        var readableFields = fields.All.Prepend(new CodeField("Id", nameof(Guid), false, null, null, false)).ToArray();
 
         return new ResourceModel(
             target.Project.Module,
@@ -252,14 +252,14 @@ internal sealed record ResourceModel(
                 $"'{aggregate.FullName}' requires exactly one public '{name}' method with the expected Result type.");
     }
 
-    internal static CrudField DescribeField(PropertyInfo property, NullabilityInfoContext nullability)
+    internal static CodeField DescribeField(PropertyInfo property, NullabilityInfoContext nullability)
     {
         var declaredType = property.PropertyType;
         var type = Nullable.GetUnderlyingType(declaredType) ?? declaredType;
         var optional = IsOptional(declaredType, nullability.Create(property));
         if (s_scalarNames.TryGetValue(type, out var scalar))
         {
-            return new CrudField(property.Name, optional ? scalar + "?" : scalar, optional, null, null, false);
+            return new CodeField(property.Name, optional ? scalar + "?" : scalar, optional, null, null, false);
         }
 
         var singleValue = DescribeSingleValue(property.Name, type, optional);
@@ -272,7 +272,7 @@ internal sealed record ResourceModel(
         var components = GetComponents(type, nullability, propertyName);
         if (components is not null)
         {
-            return new CrudField(
+            return new CodeField(
                 property.Name,
                 string.Empty,
                 optional,
@@ -287,7 +287,7 @@ internal sealed record ResourceModel(
             $"'{propertyName}' requires a scalar or a value object with a matching Create factory.");
     }
 
-    private static CrudField? DescribeSingleValue(string name, Type type, bool optional)
+    private static CodeField? DescribeSingleValue(string name, Type type, bool optional)
     {
         var value = type.GetProperty("Value") ?? type.GetProperty("Name");
         if (!type.IsPublic
@@ -308,7 +308,7 @@ internal sealed record ResourceModel(
 
         var maxLength = type.GetField("MaxLength", BindingFlags.Public | BindingFlags.Static);
         var valueMember = optional && type.IsValueType ? $"Value.{value.Name}" : value.Name;
-        return new CrudField(
+        return new CodeField(
             name,
             optional ? scalar + "?" : scalar,
             optional,
@@ -395,8 +395,8 @@ internal sealed record ResourceModel(
     private static bool IsGenericResult(Type type) =>
         type.IsGenericType && type.GetGenericTypeDefinition().FullName == GenericResultType;
 
-    internal static CrudField[] BindParameters(
-        MethodInfo method, IReadOnlyList<CrudField> fields, NullabilityInfoContext nullability, Type? leadingId = null)
+    internal static CodeField[] BindParameters(
+        MethodInfo method, IReadOnlyList<CodeField> fields, NullabilityInfoContext nullability, Type? leadingId = null)
     {
         var parameters = method.GetParameters();
         if (leadingId is not null)
@@ -409,7 +409,7 @@ internal sealed record ResourceModel(
             parameters = parameters[1..];
         }
 
-        var bound = new List<CrudField>(parameters.Length);
+        var bound = new List<CodeField>(parameters.Length);
         foreach (var parameter in parameters)
         {
             var field = fields.SingleOrDefault(
@@ -431,7 +431,7 @@ internal sealed record ResourceModel(
         return [.. bound];
     }
 
-    private static bool MatchesParameter(CrudField field, Type parameterType, bool optional)
+    private static bool MatchesParameter(CodeField field, Type parameterType, bool optional)
     {
         if (field.Composite)
         {
@@ -442,8 +442,8 @@ internal sealed record ResourceModel(
             && field.Type == (optional ? scalar + "?" : scalar);
     }
 
-    internal static CrudField[] SelectProjection(
-        IReadOnlyList<string>? names, IReadOnlyList<CrudField> fields, string setting)
+    internal static CodeField[] SelectProjection(
+        IReadOnlyList<string>? names, IReadOnlyList<CodeField> fields, string setting)
     {
         if (names is null || !names.Contains("Id") || names.Distinct(StringComparer.Ordinal).Count() != names.Count)
         {
@@ -476,7 +476,7 @@ internal sealed record ChildModel(
     string? UpdateMethod,
     string? DeleteMethod);
 
-internal sealed record CrudField(
+internal sealed record CodeField(
     string Name,
     string Type,
     bool Optional,

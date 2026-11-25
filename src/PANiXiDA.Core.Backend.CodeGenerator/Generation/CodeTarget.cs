@@ -1,12 +1,12 @@
 namespace PANiXiDA.Core.Backend.CodeGenerator.Generation;
 
-internal sealed record CrudTarget(DomainProject Project, string Feature, string Resource)
+internal sealed record CodeTarget(DomainProject Project, string Feature, string Resource)
 {
     public string Domain => $"{Project.Module}.Domain.{Feature}";
 
     public string Aggregate => $"{Domain}.{Resource}";
 
-    internal CrudTarget ForChild(ChildSettings? child)
+    internal CodeTarget ForChild(ChildSettings? child)
     {
         if (child is null
             || !DomainProject.IsIdentifier(child.Collection)
@@ -16,7 +16,7 @@ internal sealed record CrudTarget(DomainProject Project, string Feature, string 
                 $"'{Aggregate}' requires a valid collection and resource for each child.");
         }
 
-        return new CrudTarget(Project, Resource + child.Collection, child.Resource);
+        return new CodeTarget(Project, Resource + child.Collection, child.Resource);
     }
 
     internal string DefaultDirectory(string layer)

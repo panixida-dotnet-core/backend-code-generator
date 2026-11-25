@@ -1,6 +1,5 @@
 using System.Text.Json.Nodes;
 
-using PANiXiDA.Core.Backend.CodeGenerator.Generation;
 using PANiXiDA.Core.Backend.CodeGenerator.Templating;
 
 namespace PANiXiDA.Core.Backend.CodeGenerator.UnitTests;
@@ -116,11 +115,11 @@ public sealed class PlanningTests
     [Fact(DisplayName = "Index only recognized artifacts and reject duplicate resource names")]
     public void ValidatesEmbeddedCatalog()
     {
-        var catalog = CrudGenerator.LoadCatalog(
+        var catalog = Generation.CodeGenerator.LoadCatalog(
             ["NoLayer.cs.sbn", "Other/File.cs.sbn", "Application/Create__Resource__Command.cs.sbn"]);
 
         catalog.Keys.ShouldBe(["CreateCommand", "ChildCreateCommand"], ignoreOrder: true);
-        Should.Throw<InvalidOperationException>(() => CrudGenerator.LoadCatalog(
+        Should.Throw<InvalidOperationException>(() => Generation.CodeGenerator.LoadCatalog(
             ["Application/Create__Resource__Command.cs.sbn", "Presentation/Create__Resource__Command.cs.sbn"]));
         Should.Throw<InvalidOperationException>(() => EmbeddedTemplates.Read("missing.sbn"));
     }

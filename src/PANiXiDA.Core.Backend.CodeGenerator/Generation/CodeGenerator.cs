@@ -11,7 +11,7 @@ using PANiXiDA.Core.Backend.CodeGenerator.Templating;
 
 namespace PANiXiDA.Core.Backend.CodeGenerator.Generation;
 
-internal static class CrudGenerator
+internal static class CodeGenerator
 {
     internal static async Task<IReadOnlyList<OutputChange>> RunJobsAsync(
         RepositoryLayout repository,
@@ -106,7 +106,7 @@ internal static class CrudGenerator
         }
 
         private void AddChildren(
-            CrudTarget target,
+            CodeTarget target,
             Assembly? assembly,
             ResourceSettings settings,
             JobSettings job,
@@ -129,7 +129,7 @@ internal static class CrudGenerator
         }
 
         private void AddArtifacts(
-            CrudTarget target, string owner, ResourceModel? model, JobSettings job, TemplateArtifact[] artifacts)
+            CodeTarget target, string owner, ResourceModel? model, JobSettings job, TemplateArtifact[] artifacts)
         {
             if (model is not null && artifacts.Any(artifact => artifact.Name is "Endpoints" or "ChildEndpoints"))
             {
@@ -206,7 +206,7 @@ internal static class CrudGenerator
 
         private static string GetOutputPath(
             RepositoryLayout repository,
-            CrudTarget target,
+            CodeTarget target,
             JobSettings job,
             TemplateArtifact artifact)
         {

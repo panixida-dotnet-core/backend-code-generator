@@ -95,7 +95,7 @@ public sealed class ResourceModelTests
         child.UpdateFields.ShouldBeEmpty();
     }
 
-    private static CrudTarget Target(string type) => new(s_project, "Models", type);
+    private static CodeTarget Target(string type) => new(s_project, "Models", type);
 
-    private static ResourceSettings Settings(CrudTarget target) => new(target.Aggregate, "roots", ["Id"], ["Id"], null);
+    private static ResourceSettings Settings(CodeTarget target) => new(target.Aggregate, "roots", ["Id"], ["Id"], null);
 }
