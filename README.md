@@ -25,10 +25,11 @@
 
 ## Installation
 
-Add the NuGet reference to the console project that will run the generator.
+Add the generator and JSON configuration provider to the console project in `tools`.
 
 ```bash
 dotnet add tools/Acme.Store.CodeGenerator package PANiXiDA.Core.Backend.CodeGenerator
+dotnet add tools/Acme.Store.CodeGenerator package Microsoft.Extensions.Configuration.Json --version 10.0.14
 ```
 
 ## Quick Start
@@ -36,11 +37,16 @@ dotnet add tools/Acme.Store.CodeGenerator package PANiXiDA.Core.Backend.CodeGene
 From the backend repository root, run the console project after adding this code to its `Program.cs`.
 
 ```csharp
+using Microsoft.Extensions.Configuration;
+
 using PANiXiDA.Core.Backend.CodeGenerator;
 
-var changes = await BackendCodeGenerator.GenerateAsync(
-    Directory.GetCurrentDirectory(),
-    "tools/Acme.Store.CodeGenerator/appsettings.json");
+var configuration = new ConfigurationBuilder()
+    .SetBasePath(AppContext.BaseDirectory)
+    .AddJsonFile("appsettings.json")
+    .Build();
+
+var changes = await BackendCodeGenerator.GenerateAsync(configuration);
 
 foreach (var change in changes)
 {
@@ -48,7 +54,15 @@ foreach (var change in changes)
 }
 ```
 
-Save the JSON configuration alongside the console project.
+Save the JSON configuration alongside the console project and copy it to the build output.
+
+```xml
+<ItemGroup>
+  <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+</ItemGroup>
+```
+
+The console project loads its own JSON file. The library reads `jobs` from the supplied `IConfiguration` and uses the current working directory as the backend repository root. Pass `repositoryRoot` explicitly when launching the tool from another directory.
 
 ```json
 {
@@ -91,12 +105,12 @@ The example generates two files. See the [full CRUD example](tests/PANiXiDA.Core
 | `pathToModels` | Path to the Domain project directory or its `.Domain.csproj`, relative to the backend repository root. |
 | `models` | One or more aggregate configurations from that Domain project. |
 | `generatedFiles` | Explicit artifact names. Use `Child*` artifacts for entries in `children`. |
-| `templates` | Optional mapping from an artifact name or an embedded partial filename to a Scriban file within the repository. Relative paths are resolved from the directory containing the configuration file. |
+| `templates` | Optional mapping from an artifact name or an embedded partial filename to a Scriban file within the repository. Relative paths are resolved from `templateBaseDirectory`, which defaults to the repository root when passing `IConfiguration`. |
 | `outputDirectory` | Optional mapping from an artifact name to a directory relative to the repository root. Supports `{Module}`, `{ModuleName}`, `{Feature}`, and `{Resource}`. |
 | `overwriteExisting` | Allows replacing selected files. Defaults to `false`. |
 | `deleteGenerated` | Deletes selected files with a matching generator marker without building Domain. Defaults to `false`. |
 
-For example, `"templates": { "CreateCommand": "Templates/MyCreate.sbn", "DtoRecord.sbn": "Templates/MyDto.sbn" }` overrides one artifact and one shared partial for the job. All other templates come from the package.
+For example, `"templates": { "CreateCommand": "Templates/MyCreate.sbn", "DtoRecord.sbn": "Templates/MyDto.sbn" }` overrides one artifact and one shared partial for the job. All other templates come from the package. Pass `templateBaseDirectory: "tools/Acme.Store.CodeGenerator"` to resolve the example overrides next to the tool project. The overload that takes a JSON path resolves relative overrides from that file's directory.
 
 Review the generated files before committing them to your backend repository.
 

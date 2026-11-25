@@ -1,6 +1,6 @@
 namespace PANiXiDA.Core.Backend.CodeGenerator.FileSystem;
 
-internal sealed record RepositoryLayout(string Root, string ConfigurationDirectory)
+internal sealed record RepositoryLayout(string Root, string TemplateBaseDirectory)
 {
     internal string ResolvePath(string path, string relativeTo) => ResolvePath(path, relativeTo, Root);
 

@@ -16,6 +16,7 @@
         <PackageReference Include="Nerdbank.GitVersioning">
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
+        <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
         <PackageReference Include="Scriban" />
     </ItemGroup>
 

@@ -71,8 +71,7 @@ public sealed class ResourceModelTests
     public void RejectsInvalidChildren(string collection, string rootRoute, string childRoute, string? method, string message)
     {
         var parent = Target(nameof(ValidRoot));
-        var settings = new ChildSettings(collection, "Child", childRoute, method, "UpdateVariant", "RemoveVariant",
-            ["Id"], ["Id"]);
+        var settings = new ChildSettings(collection, "Child", childRoute, ["Id"], ["Id"], method, "UpdateVariant", "RemoveVariant");
 
         var error = Should.Throw<InvalidOperationException>(() => ResourceModel.CreateChild(
             typeof(ValidRoot).Assembly, parent, parent.ForChild(settings), rootRoute, settings, ["ChildCreateHandler"]));
@@ -84,8 +83,7 @@ public sealed class ResourceModelTests
     public void SupportsReadOnlyChildren()
     {
         var parent = Target(nameof(ValidRoot));
-        var settings = new ChildSettings(nameof(ValidRoot.Variants), "Variant", "variants", null, null, null,
-            ["Id"], ["Id"]);
+        var settings = new ChildSettings(nameof(ValidRoot.Variants), "Variant", "variants", ["Id"], ["Id"]);
 
         var child = ResourceModel.CreateChild(typeof(ValidRoot).Assembly, parent, parent.ForChild(settings),
             "roots", settings, ["ChildGetListHandler"]);

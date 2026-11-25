@@ -257,7 +257,7 @@ internal static class CodeGenerator
             }
 
             var templatePath = job.Templates?.TryGetValue(artifact.Name, out var overridePath) == true
-                ? repository.ResolvePath(overridePath, repository.ConfigurationDirectory)
+                ? repository.ResolvePath(overridePath, repository.TemplateBaseDirectory)
                 : artifact.SourcePath;
             var partials = new PartialTemplateLoader(repository, job.Templates);
             var source = Render(templatePath, model, parsedTemplates, partials);

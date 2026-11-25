@@ -20,7 +20,7 @@ internal sealed class PartialTemplateLoader(
         }
 
         return overrides?.TryGetValue(templateName, out var path) == true
-            ? repository.ResolvePath(path, repository.ConfigurationDirectory)
+            ? repository.ResolvePath(path, repository.TemplateBaseDirectory)
             : $"Partials/{templateName}";
     }
 
