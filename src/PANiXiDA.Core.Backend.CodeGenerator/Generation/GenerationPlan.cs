@@ -13,6 +13,12 @@ namespace PANiXiDA.Core.Backend.CodeGenerator.Generation;
 
 internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
 {
+    private const string ResourcePlaceholder = "__Resource__";
+    private const string FeaturePlaceholder = "__Feature__";
+    private const string ChildArtifactPrefix = "Child";
+    private const string EndpointsArtifactName = "Endpoints";
+    private const string ChildEndpointsArtifactName = ChildArtifactPrefix + EndpointsArtifactName;
+
     private readonly Dictionary<string, TemplateArtifact> _catalog = LoadCatalog(EmbeddedTemplates.Paths);
     private readonly Dictionary<string, Template> _parsedTemplates = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Assembly> _domains = new(StringComparer.OrdinalIgnoreCase);
@@ -111,7 +117,8 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
     private void AddArtifacts(
         ResourceTarget target, string owner, ResourceModel? model, JobSettings job, TemplateArtifact[] artifacts)
     {
-        if (model is not null && artifacts.Any(artifact => artifact.Name is "Endpoints" or "ChildEndpoints"))
+        if (model is not null
+            && artifacts.Any(artifact => artifact.Name is EndpointsArtifactName or ChildEndpointsArtifactName))
         {
             var route = model.Child is null
                 ? model.Route
@@ -190,8 +197,8 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
         JobSettings job,
         TemplateArtifact artifact)
     {
-        var file = artifact.RelativePath.Replace("__Resource__", target.Resource, StringComparison.Ordinal)
-            .Replace("__Feature__", target.Feature, StringComparison.Ordinal);
+        var file = artifact.RelativePath.Replace(ResourcePlaceholder, target.Resource, StringComparison.Ordinal)
+            .Replace(FeaturePlaceholder, target.Feature, StringComparison.Ordinal);
         if (job.OutputDirectory?.TryGetValue(artifact.Name, out var configuredDirectory) == true)
         {
             var expanded = target.ExpandOutputDirectory(configuredDirectory);
@@ -289,15 +296,16 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
         {
             var separator = path.IndexOf('/');
             if (separator < 0
-                || path[..separator] is not ("Domain" or "Application" or "Infrastructure" or "Presentation"))
+                || path[..separator] is not (ModuleLayer.Domain or ModuleLayer.Application
+                    or ModuleLayer.Infrastructure or ModuleLayer.Presentation))
             {
                 continue;
             }
 
             var outputFile = path[(separator + 1)..^".sbn".Length];
             var name = Path.GetFileNameWithoutExtension(outputFile)
-                .Replace("__Resource__", string.Empty, StringComparison.Ordinal)
-                .Replace("__Feature__", string.Empty, StringComparison.Ordinal);
+                .Replace(ResourcePlaceholder, string.Empty, StringComparison.Ordinal)
+                .Replace(FeaturePlaceholder, string.Empty, StringComparison.Ordinal);
             var artifact = new TemplateArtifact(name, path[..separator], outputFile, path, Child: false);
             if (!catalog.TryAdd(name, artifact))
             {
@@ -306,7 +314,7 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
 
             if (name is not ("IRepository" or "Repository"))
             {
-                var child = artifact with { Name = $"Child{name}", Child = true };
+                var child = artifact with { Name = ChildArtifactPrefix + name, Child = true };
                 catalog.Add(child.Name, child);
             }
         }

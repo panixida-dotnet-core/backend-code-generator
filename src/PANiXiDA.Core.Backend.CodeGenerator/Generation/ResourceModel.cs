@@ -23,6 +23,9 @@ internal sealed record ResourceModel(
     private const string EntityInterface = "PANiXiDA.Core.Domain.Entities.IEntity";
     private const string ResultType = "PANiXiDA.Core.ResultPattern.Result";
     private const string GenericResultType = ResultType + "`1";
+    private const string CreateMethodName = "Create";
+    private const string IdPropertyName = "Id";
+    private const string ValuePropertyName = "Value";
 
     private static readonly Dictionary<Type, string> s_scalarNames = new()
     {
@@ -64,7 +67,7 @@ internal sealed record ResourceModel(
         var id = GetId(aggregate, AggregateRootType);
         var nullability = new NullabilityInfoContext();
         var fields = GetFields(aggregate, nullability);
-        var create = GetOperation(aggregate, "Create", isStatic: true, payload: aggregate);
+        var create = GetOperation(aggregate, CreateMethodName, isStatic: true, payload: aggregate);
         var update = GetOperation(aggregate, "Update", isStatic: false, payload: null);
 
         return MakeModel(
@@ -155,7 +158,7 @@ internal sealed record ResourceModel(
 
     private static CodeField[] GetFields(Type entity, NullabilityInfoContext nullability) =>
         [.. entity.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
-            .Where(property => property.Name != "Id"
+            .Where(property => property.Name != IdPropertyName
                 && property.GetMethod is { IsPublic: true }
                 && property.GetIndexParameters().Length == 0
                 && property.SetMethod is not null
@@ -181,7 +184,9 @@ internal sealed record ResourceModel(
         (IReadOnlyList<string> Details, IReadOnlyList<string> List) projections,
         ChildModel? child = null)
     {
-        var readableFields = fields.All.Prepend(new CodeField("Id", nameof(Guid), false, null, null, false)).ToArray();
+        var readableFields = fields.All
+            .Prepend(new CodeField(IdPropertyName, nameof(Guid), false, null, null, false))
+            .ToArray();
 
         return new ResourceModel(
             target.Project.Module,
@@ -211,7 +216,7 @@ internal sealed record ResourceModel(
 
         var id = baseType.GetGenericArguments()[0];
         if (id.Namespace != entity.Namespace
-            || id.GetProperty("Value")?.PropertyType != typeof(Guid)
+            || id.GetProperty(ValuePropertyName)?.PropertyType != typeof(Guid)
             || !HasFactory(id, typeof(Guid), allowNullableResult: false))
         {
             throw new InvalidOperationException(
@@ -289,7 +294,7 @@ internal sealed record ResourceModel(
 
     private static CodeField? DescribeSingleValue(string name, Type type, bool optional)
     {
-        var value = type.GetProperty("Value") ?? type.GetProperty("Name");
+        var value = type.GetProperty(ValuePropertyName) ?? type.GetProperty("Name");
         if (!type.IsPublic
             || type.IsGenericType
             || value?.GetMethod is not { IsPublic: true, IsStatic: false }
@@ -325,7 +330,7 @@ internal sealed record ResourceModel(
         }
 
         var candidates = type.GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .Where(method => method.Name == "Create"
+            .Where(method => method.Name == CreateMethodName
                 && !method.IsGenericMethod
                 && MatchesResult(method.ReturnType, type))
             .Select(method => method.GetParameters())
@@ -376,7 +381,7 @@ internal sealed record ResourceModel(
 
     private static bool HasFactory(Type type, Type argumentType, bool allowNullableResult)
     {
-        var factory = type.GetMethod("Create", BindingFlags.Public | BindingFlags.Static, [argumentType]);
+        var factory = type.GetMethod(CreateMethodName, BindingFlags.Public | BindingFlags.Static, [argumentType]);
         var resultType = factory?.ReturnType;
         if (resultType is null || !IsGenericResult(resultType))
         {
@@ -445,9 +450,10 @@ internal sealed record ResourceModel(
     internal static CodeField[] SelectProjection(
         IReadOnlyList<string>? names, IReadOnlyList<CodeField> fields, string setting)
     {
-        if (names is null || !names.Contains("Id") || names.Distinct(StringComparer.Ordinal).Count() != names.Count)
+        if (names is null || !names.Contains(IdPropertyName)
+            || names.Distinct(StringComparer.Ordinal).Count() != names.Count)
         {
-            throw new InvalidOperationException($"'{setting}' must contain Id and distinct property names.");
+            throw new InvalidOperationException($"'{setting}' must contain {IdPropertyName} and distinct property names.");
         }
 
         return [.. names.Select(name => fields.SingleOrDefault(field => field.Name == name)

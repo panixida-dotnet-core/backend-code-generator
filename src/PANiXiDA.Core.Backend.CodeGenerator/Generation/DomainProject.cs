@@ -10,19 +10,20 @@ namespace PANiXiDA.Core.Backend.CodeGenerator.Generation;
 
 internal sealed record DomainProject(string ProjectFile, string Module, string ModuleName)
 {
-    private const string DomainSuffix = ".Domain";
+    private const string DomainSuffix = "." + ModuleLayer.Domain;
+    private const string ProjectFileSuffix = DomainSuffix + ".csproj";
 
     internal static DomainProject Find(RepositoryLayout repository, string pathToModels)
     {
         var path = repository.ResolvePath(pathToModels, repository.Root);
         var projects = Directory.Exists(path)
-            ? Directory.GetFiles(path, "*.Domain.csproj")
+            ? Directory.GetFiles(path, "*" + ProjectFileSuffix)
             : [path];
         if (projects.Length != 1
-            || !projects[0].EndsWith(".Domain.csproj", StringComparison.Ordinal)
+            || !projects[0].EndsWith(ProjectFileSuffix, StringComparison.Ordinal)
             || !File.Exists(projects[0]))
         {
-            throw new InvalidOperationException($"'{pathToModels}' must identify exactly one .Domain.csproj.");
+            throw new InvalidOperationException($"'{pathToModels}' must identify exactly one {ProjectFileSuffix}.");
         }
 
         var projectFile = repository.ResolvePath(projects[0], repository.Root);

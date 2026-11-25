@@ -2,7 +2,7 @@ namespace PANiXiDA.Core.Backend.CodeGenerator.Generation;
 
 internal sealed record ResourceTarget(DomainProject Project, string Feature, string Resource)
 {
-    public string Domain => $"{Project.Module}.Domain.{Feature}";
+    public string Domain => $"{Project.Module}.{ModuleLayer.Domain}.{Feature}";
 
     public string Aggregate => $"{Domain}.{Resource}";
 
@@ -22,7 +22,7 @@ internal sealed record ResourceTarget(DomainProject Project, string Feature, str
     internal string DefaultDirectory(string layer)
     {
         var domainDirectory = Path.GetDirectoryName(Project.ProjectFile)!;
-        if (layer == "Domain")
+        if (layer == ModuleLayer.Domain)
         {
             return Path.Combine(domainDirectory, Feature);
         }
@@ -39,9 +39,9 @@ internal sealed record ResourceTarget(DomainProject Project, string Feature, str
 
         return layer switch
         {
-            "Application" => Path.Combine(projectDirectory, Feature),
-            "Infrastructure" => Path.Combine(projectDirectory, "Persistence", "Features", Feature),
-            "Presentation" => Path.Combine(projectDirectory, "Features", Feature),
+            ModuleLayer.Application => Path.Combine(projectDirectory, Feature),
+            ModuleLayer.Infrastructure => Path.Combine(projectDirectory, "Persistence", "Features", Feature),
+            ModuleLayer.Presentation => Path.Combine(projectDirectory, "Features", Feature),
             _ => throw new InvalidOperationException($"Unknown template layer '{layer}'.")
         };
     }
