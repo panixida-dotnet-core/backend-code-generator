@@ -52,7 +52,7 @@ internal sealed record ResourceModel(
 
     public bool HasCompoundList => ListFields.Any(item => item.Composite);
 
-    internal static ResourceModel Create(Assembly domainAssembly, CodeTarget target, ResourceSettings settings)
+    internal static ResourceModel Create(Assembly domainAssembly, ResourceTarget target, ResourceSettings settings)
     {
         if (!IsRoute(settings.Route))
         {
@@ -77,8 +77,8 @@ internal sealed record ResourceModel(
 
     internal static ResourceModel CreateChild(
         Assembly domainAssembly,
-        CodeTarget parent,
-        CodeTarget target,
+        ResourceTarget parent,
+        ResourceTarget target,
         string parentRoute,
         ChildSettings settings,
         IReadOnlyList<string> artifacts)
@@ -141,7 +141,7 @@ internal sealed record ResourceModel(
             child);
     }
 
-    private static Type GetAggregate(Assembly domainAssembly, CodeTarget target)
+    private static Type GetAggregate(Assembly domainAssembly, ResourceTarget target)
     {
         var aggregate = domainAssembly.GetType(target.Aggregate);
         if (aggregate is not { IsPublic: true, IsClass: true, IsAbstract: false, IsGenericType: false })
@@ -174,7 +174,7 @@ internal sealed record ResourceModel(
             .Distinct()];
 
     private static ResourceModel MakeModel(
-        CodeTarget target,
+        ResourceTarget target,
         Type id,
         string route,
         (CodeField[] All, CodeField[] Create, CodeField[] Update) fields,

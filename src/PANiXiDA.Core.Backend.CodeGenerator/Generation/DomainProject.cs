@@ -31,7 +31,7 @@ internal sealed record DomainProject(string ProjectFile, string Module, string M
         return new DomainProject(projectFile, module, moduleName);
     }
 
-    internal CodeTarget Locate(string aggregate)
+    internal ResourceTarget Locate(string aggregate)
     {
         var prefix = $"{Module}{DomainSuffix}.";
         if (!string.IsNullOrWhiteSpace(aggregate) && aggregate.StartsWith(prefix, StringComparison.Ordinal))
@@ -39,7 +39,7 @@ internal sealed record DomainProject(string ProjectFile, string Module, string M
             var names = aggregate[prefix.Length..].Split('.');
             if (names.Length == 2 && names.All(IsIdentifier))
             {
-                return new CodeTarget(this, names[0], names[1]);
+                return new ResourceTarget(this, names[0], names[1]);
             }
         }
 

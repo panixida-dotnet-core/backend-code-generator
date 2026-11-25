@@ -106,7 +106,7 @@ internal static class CodeGenerator
         }
 
         private void AddChildren(
-            CodeTarget target,
+            ResourceTarget target,
             Assembly? assembly,
             ResourceSettings settings,
             JobSettings job,
@@ -129,7 +129,7 @@ internal static class CodeGenerator
         }
 
         private void AddArtifacts(
-            CodeTarget target, string owner, ResourceModel? model, JobSettings job, TemplateArtifact[] artifacts)
+            ResourceTarget target, string owner, ResourceModel? model, JobSettings job, TemplateArtifact[] artifacts)
         {
             if (model is not null && artifacts.Any(artifact => artifact.Name is "Endpoints" or "ChildEndpoints"))
             {
@@ -206,7 +206,7 @@ internal static class CodeGenerator
 
         private static string GetOutputPath(
             RepositoryLayout repository,
-            CodeTarget target,
+            ResourceTarget target,
             JobSettings job,
             TemplateArtifact artifact)
         {
