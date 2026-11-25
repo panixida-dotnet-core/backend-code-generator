@@ -4,7 +4,7 @@ using {{ model.domain }};
 
 namespace {{ model.module }}.Application.{{ model.feature }}.Write.Delete;
 
-public sealed class Delete{{ model.resource }}Handler(I{{ if model.child }}{{ model.child.parent_feature }}{{ else }}{{ model.feature }}{{ end }}Repository repository)
+public sealed class Delete{{ model.resource }}Handler(I{{ model.aggregate_feature }}Repository {{ model.write_repository_parameter }})
     : ICommandHandler<Delete{{ model.resource }}Command, Result>{{ if model.child }}, IRequireTransaction{{ end }}
 {
     public async Task<Result> HandleAsync(
@@ -21,7 +21,7 @@ public sealed class Delete{{ model.resource }}Handler(I{{ if model.child }}{{ mo
             return Result.Failure(idResult.Errors);
         }
 
-        var entity = await repository.GetByIdAsync(
+        var entity = await {{ model.write_repository_parameter }}.GetByIdAsync(
             idResult.Value,
             cancellationToken);
 
@@ -31,7 +31,7 @@ public sealed class Delete{{ model.resource }}Handler(I{{ if model.child }}{{ mo
                 Error.NotFound($"{{ model.resource }} with id '{command.Id}' was not found."));
         }
 
-        repository.Delete(entity);
+        {{ model.write_repository_parameter }}.Delete(entity);
 
         return Result.Success();
 {{ end }}    }

@@ -10,7 +10,7 @@
         }
 
 {{ indent = "        " }}{{ end }}{{ indent }}var {{ item.local_name }}Result = {{ item.value_object }}.Create(
-{{ for component in item.components }}{{ indent }}    {{ item.local_name }}Input.{{ component.name }}{{ if !for.last }},
+{{ for component in item.components }}{{ indent }}    @{{ component.parameter_name }}: {{ item.local_name }}Input.{{ component.name }}{{ if !for.last }},
 {{ end }}{{ end }});
 
 {{ indent }}if ({{ item.local_name }}Result.IsFailure)

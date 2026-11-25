@@ -15,13 +15,25 @@ internal sealed record ResourceModel(
     IReadOnlyList<CodeField> ListFields,
     ChildModel? Child = null)
 {
+    public string AggregateFeature => Child?.ParentFeature ?? Feature;
+
+    public string ReadFeature => AggregateFeature;
+
+    public string WriteRepositoryParameter =>
+        char.ToLowerInvariant(AggregateFeature[0]) + AggregateFeature[1..] + "Repository";
+
+    public string ReadDbResource => Child?.ParentResource ?? Resource;
+
     public bool HasDetailsReadModel { get; init; }
 
     public bool HasListItemReadModel { get; init; }
+    public bool HasDetailsEndpoint { get; init; }
 
     public bool HasFilter { get; init; }
 
     public bool HasFilterValidator { get; init; }
+
+    public IReadOnlyList<ResourceModel> ChildReadContracts { get; init; } = [];
 
     public CodeField[] SearchFields => [.. ListFields.Where(item => item.Type is "string" or "string?")];
 

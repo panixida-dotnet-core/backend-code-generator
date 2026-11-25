@@ -1,0 +1,16 @@
+{{ include "BindCompoundValues.sbn" -}}
+{{ for item in fields }}{{ if item.binds_domain_value && !item.composite }}{{ if item.optional }}        {{ item.value_object }}? {{ item.local_name }}Value = null;
+        if (command.{{ item.name }} is { } {{ item.local_name }}Input)
+        {
+{{ indent = "            " }}{{ else }}{{ indent = "        " }}{{ end }}{{ indent }}var {{ item.local_name }}Result =
+{{ indent }}    {{ item.value_object }}.Create(
+{{ indent }}        {{ if item.optional }}{{ item.local_name }}Input{{ else }}command.{{ item.name }}{{ end }});
+{{ indent }}if ({{ item.local_name }}Result.IsFailure)
+{{ indent }}{
+{{ indent }}    return {{ fail_start }}{{ item.local_name }}Result.Errors{{ fail_end }};
+{{ indent }}}
+
+{{ indent }}{{ if !item.optional }}var {{ end }}{{ item.local_name }}Value = {{ item.local_name }}Result.Value;
+{{ if item.optional }}        }
+{{ end }}
+{{ end }}{{ end -}}

@@ -8,6 +8,9 @@ internal sealed record ChildModel(
     string RouteId,
     string Collection,
     string Entity,
+    string Table,
+    IReadOnlyList<CodeField> ParentRequiredFields,
     string? CreateMethod,
     string? UpdateMethod,
+    string? UpdateIdParameter,
     string? DeleteMethod);

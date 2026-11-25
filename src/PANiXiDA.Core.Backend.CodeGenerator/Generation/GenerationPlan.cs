@@ -22,11 +22,11 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
     private const string EndpointsArtifactName = "Endpoints";
     private const string ChildEndpointsArtifactName = ChildArtifactPrefix + EndpointsArtifactName;
     private const string ChildReadRepositoryName = "ChildReadRepository";
-    private const string ChildIReadRepositoryName = "ChildIReadRepository";
 
     private readonly Dictionary<string, TemplateArtifact> _catalog = LoadCatalog(EmbeddedTemplates.Paths);
     private readonly Dictionary<string, Template> _parsedTemplates = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, Assembly> _domains = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (Assembly Assembly, AssemblyLoadContext Context)> _domains =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _paths = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _routes = new(StringComparer.Ordinal);
     private readonly List<PlannedArtifact> _outputs = [];
@@ -35,7 +35,7 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
     {
         foreach (var domain in _domains.Values)
         {
-            AssemblyLoadContext.GetLoadContext(domain)!.Unload();
+            domain.Context.Unload();
         }
     }
 
@@ -97,7 +97,7 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
                 throw new InvalidOperationException($"Duplicate artifact name '{name}' in the bundled templates.");
             }
 
-            if (name is not ("IRepository" or "Repository"))
+            if (name is not ("IRepository" or "Repository" or "IReadRepository"))
             {
                 var child = artifact with { Name = ChildArtifactPrefix + name, Child = true };
                 catalog.Add(child.Name, child);
@@ -109,13 +109,13 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
 
     private async Task<Assembly> GetDomainAsync(DomainProject project, CancellationToken cancellationToken)
     {
-        if (!_domains.TryGetValue(project.ProjectFile, out var assembly))
+        if (!_domains.TryGetValue(project.ProjectFile, out var domain))
         {
-            assembly = await project.BuildAsync(repository.Root, cancellationToken);
-            _domains.Add(project.ProjectFile, assembly);
+            domain = await project.BuildAsync(repository.Root, cancellationToken);
+            _domains.Add(project.ProjectFile, domain);
         }
 
-        return assembly;
+        return domain.Assembly;
     }
 
     private void AddModel(
@@ -134,7 +134,14 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
         var target = project.Locate(settings.Aggregate);
         if (rootArtifacts.Length > 0)
         {
-            var model = assembly is null ? null : ResourceModelFactory.Create(assembly, target, settings);
+            var model = assembly is null
+                ? null
+                : ResourceModelFactory.Create(
+                    assembly,
+                    target,
+                    settings,
+                    includeCreate: rootArtifacts.Any(artifact => artifact.Name.StartsWith("Create", StringComparison.Ordinal)),
+                    includeUpdate: rootArtifacts.Any(artifact => artifact.Name.StartsWith("Update", StringComparison.Ordinal)));
             AddArtifacts(target, target.Aggregate, model, job, rootArtifacts);
         }
 
@@ -178,7 +185,7 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
         {
             var route = model.Child is null
                 ? model.Route
-                : model.Route.Replace(model.Child.RouteId + ":guid", "parentId:guid", StringComparison.Ordinal);
+                : model.Route.Replace(model.Child.RouteId.ToLowerInvariant() + ":guid", "parentid:guid", StringComparison.Ordinal);
             RegisterRoute(_routes, route, owner);
         }
 
@@ -191,7 +198,7 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
                     $"'{GetRelativePath(repository, path)}' is not a unique file path.");
             }
 
-            _outputs.Add(new PlannedArtifact(target, owner, model, job, artifact, path));
+            _outputs.Add(new PlannedArtifact(target, owner, model, job, artifact, path, parent));
         }
     }
 
@@ -206,27 +213,59 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
         var isReadRepository = name is "IReadRepository" or "ReadRepository";
         var hasListItemReadModel = isReadRepository && HasArtifact(output, "ListItemReadModel");
         var usesFilter = hasListItemReadModel
-            || name is "GetListQuery" or "GetListQueryValidator" or "GetListHandler" or "GetListEndpoint";
+            || name is "GetListQuery" or "GetListQueryValidator" or "GetListHandler" or "GetListEndpoint" or "GetListMapper";
 
         return model with
         {
             HasDetailsReadModel = isReadRepository && HasArtifact(output, "DetailsReadModel"),
             HasListItemReadModel = hasListItemReadModel,
+            HasDetailsEndpoint = name == "CreateEndpoint" && HasArtifact(output, "GetDetailsEndpoint"),
             HasFilter = usesFilter && HasArtifact(output, "Filter"),
-            HasFilterValidator = name == "GetListQueryValidator" && HasArtifact(output, "FilterValidator")
+            HasFilterValidator = name == "GetListQueryValidator" && HasArtifact(output, "FilterValidator"),
+            ChildReadContracts = name == "IReadRepository" ? GetChildReadContracts(output) : []
         };
+    }
+
+    private ResourceModel[] GetChildReadContracts(PlannedArtifact output)
+    {
+        var artifact = _catalog[ChildReadRepositoryName];
+        var children = _outputs
+            .Where(candidate => candidate.Parent == output.Target && candidate.Artifact == artifact && candidate.Model is not null)
+            .DistinctBy(candidate => candidate.Target)
+            .ToDictionary(candidate => candidate.Target);
+        var settings = output.Job.Models.Single(model => model.Aggregate == output.Owner);
+        foreach (var child in settings.Children ?? [])
+        {
+            var target = output.Target.ForChild(child);
+            if (children.ContainsKey(target)
+                || !HasArtifact(target, output.Job, ChildReadRepositoryName, output.Target))
+            {
+                continue;
+            }
+
+            var model = ResourceModelFactory.CreateChild(
+                _domains[output.Target.Project.ProjectFile].Assembly, output.Target, target, settings.Route, child, []);
+            children.Add(target, output with { Target = target, Model = model, Artifact = artifact, Parent = output.Target });
+        }
+
+        return [.. children.Values.Select(child => GetTemplateModel(child)!)];
     }
 
     private bool HasArtifact(PlannedArtifact output, string name)
     {
         var artifactName = output.Artifact.Child ? ChildArtifactPrefix + name : name;
-        if (_outputs.Any(candidate => candidate.Target == output.Target
+        return HasArtifact(output.Target, output.Job, artifactName, output.Parent);
+    }
+
+    private bool HasArtifact(ResourceTarget target, JobSettings job, string artifactName, ResourceTarget? parent)
+    {
+        if (_outputs.Any(candidate => candidate.Target == target
             && candidate.Artifact.Name == artifactName && !candidate.Job.DeleteGenerated))
         {
             return true;
         }
 
-        var path = GetOutputPath(repository, output.Target, output.Job, _catalog[artifactName], required: false);
+        var path = GetOutputPath(repository, target, job, _catalog[artifactName], required: false, parent: parent);
         return path is not null && !_paths.Contains(path) && File.Exists(path);
     }
 
@@ -286,10 +325,13 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
         bool required = true,
         ResourceTarget? parent = null)
     {
-        var repositoryParent = artifact.Name is ChildReadRepositoryName or ChildIReadRepositoryName ? parent : null;
-        var directoryTarget = repositoryParent ?? target;
+        var repositoryParent = artifact.Name == ChildReadRepositoryName ? parent : null;
+        var belongsToParent = (artifact.Layer is ModuleLayer.Application or ModuleLayer.Infrastructure
+            && artifact.RelativePath.StartsWith("Read/", StringComparison.Ordinal))
+            || artifact.Name == "ChildConfiguration";
+        var directoryTarget = repositoryParent ?? (belongsToParent ? parent : null) ?? target;
         var file = artifact.RelativePath.Replace(ResourcePlaceholder, target.Resource, StringComparison.Ordinal)
-            .Replace(FeaturePlaceholder, directoryTarget.Feature, StringComparison.Ordinal);
+            .Replace(FeaturePlaceholder, repositoryParent?.Feature ?? target.Feature, StringComparison.Ordinal);
         if (repositoryParent is not null)
         {
             file = $"{file[..^".cs".Length]}.{target.Feature}.cs";
@@ -389,5 +431,6 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
         Path.GetRelativePath(repository.Root, path);
 
     private sealed record PlannedArtifact(
-        ResourceTarget Target, string Owner, ResourceModel? Model, JobSettings Job, TemplateArtifact Artifact, string Path);
+        ResourceTarget Target, string Owner, ResourceModel? Model, JobSettings Job, TemplateArtifact Artifact,
+        string Path, ResourceTarget? Parent);
 }

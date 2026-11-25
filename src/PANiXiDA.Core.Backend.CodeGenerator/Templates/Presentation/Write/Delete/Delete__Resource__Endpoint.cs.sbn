@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 
-using {{ model.module }}.Application.{{ model.feature }}.Write.Delete;
-
 namespace {{ model.module }}.Presentation.Features.{{ model.feature }}.Write.Delete;
 
 internal sealed class Delete{{ model.resource }}Endpoint : IEndpoint<{{ model.feature }}Endpoints>
@@ -25,8 +23,10 @@ internal sealed class Delete{{ model.resource }}Endpoint : IEndpoint<{{ model.fe
         IMediator mediator,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.SendAsync(new Delete{{ model.resource }}Command({{ if model.child }}{{ model.child.route_id }}, {{ end }}id), cancellationToken);
+        var result = await mediator.SendAsync(
+            Delete{{ model.resource }}Mapper.ToCommand({{ if model.child }}parentId: {{ model.child.route_id }}, {{ end }}id: id),
+            cancellationToken);
 
-        return result.ToHttpResult(TypedResults.NoContent);
+        return result.ToHttpResult(onSuccess: TypedResults.NoContent);
     }
 }

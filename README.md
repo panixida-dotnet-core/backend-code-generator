@@ -94,7 +94,7 @@ The example generates two files. See the [full CRUD example](tests/PANiXiDA.Core
 ## Model Conventions
 
 - An aggregate derives from `AggregateRoot<TId>` and has a Guid-backed ID exposing `Value` and `Create(Guid)`. It provides a static `Create` returning `Result<TAggregate>` and an instance `Update` returning `Result`.
-- Method parameters bind to writable properties by name and input type. A private setter is supported. For a compound value object, each factory parameter must match a readable scalar property by name, type, and nullability. Use the value object's type in the aggregate method.
+- Method parameters bind to writable properties by name and input type. A private setter is supported. Use the domain types in aggregate and child methods. The generated handlers bind scalar request values to identifiers, enumerations, and value objects through their factories. For a compound value object, each factory parameter must match a readable scalar property by name, type, and nullability.
 - Both read projections include `Id`. Compound value objects render as nested DTOs and map to a `jsonb` column. List sorting uses top-level scalar fields.
 - A child collection exposes entities deriving from `Entity<TId>`. Configure `collection`, `resource`, `route`, read projections, and the aggregate method names for the write artifacts you select. Create returns `Result<TChildId>`. Update and delete take the child ID first and return `Result`.
 
@@ -114,11 +114,15 @@ For example, `"templates": { "CreateCommand": "Templates/MyCreate.sbn", "DtoReco
 
 The generated read repository includes each method when its corresponding `DetailsReadModel` or `ListItemReadModel` is selected by any job for that resource, or already exists at its default or configured output path. The same rule applies to `Child*` read artifacts. Select the corresponding mapper and, for list queries, sorting artifact if those files do not already exist.
 
-The aggregate owns the read repository. `ChildIReadRepository` and `ChildReadRepository` generate partial files for its existing interface and implementation, with collection-specific methods such as `GetVariantsItemByIdAsync` and `GetVariantsPageAsync`. Include the aggregate's `IReadRepository`, `ReadRepository`, and `ReadDbModel` in the same run or generate them first. When moving from an earlier scaffold that generated separate child repositories, regenerate the aggregate repositories and child read handlers, then remove the obsolete child repository files.
+The aggregate owns the read repository. `IReadRepository` declares the aggregate and child methods in one interface. `ChildReadRepository` implements collection-specific methods such as `GetVariantsItemByIdAsync` and `GetVariantsPageAsync` in a partial file of that repository. Include `IReadRepository`, `ReadRepository`, `ReadDbModel`, and the child artifacts when scaffolding a new aggregate with child reads. When adding child reads to an existing aggregate, regenerate or update its `IReadRepository`. Remove `ChildIReadRepository` from configurations using the former artifact and remove its obsolete generated files.
+
+Child read use cases, projections, and mappers live under the aggregate feature. `ChildReadDbModel` maps an owned collection on the aggregate's EF read model to the same table as the write configuration. Child list methods use the aggregate query, read-model mapper, and sorting to paginate in the database. When regenerating child reads from an older scaffold, remove the former read files from the separate child feature folders.
 
 Select `Filter` and `FilterValidator` to generate the feature's `IFilter` record and FluentValidation validator under `Application/<Feature>/Common/Filters`. Use `ChildFilter` and `ChildFilterValidator` for a child feature. These artifacts can be generated independently of read operations.
 
-With a filter available, string fields in `listFields` enable the optional `search` query parameter. The list repository matches a case-insensitive text fragment against any of those fields before sorting and pagination. The default filter is empty if the list projection has no string fields. Generate the list endpoint, query, validator, handler, and both repository files together when enabling search on an existing feature.
+With a filter available, string fields in `listFields` enable the optional `search` query parameter. The list repository matches a case-insensitive text fragment against any of those fields before sorting and pagination. The default filter is empty if the list projection has no string fields. Generate the list endpoint, mapper, query, validator, handler, and both repository files together when enabling search on an existing feature.
+
+Generated endpoint groups require authorization. When selecting `DeleteEndpoint` or `ChildDeleteEndpoint`, include the corresponding `DeleteMapper` or `ChildDeleteMapper`. Create endpoints use the details route when it exists and return HTTP 201 with the created response otherwise.
 
 Review the generated files before committing them to your backend repository.
 

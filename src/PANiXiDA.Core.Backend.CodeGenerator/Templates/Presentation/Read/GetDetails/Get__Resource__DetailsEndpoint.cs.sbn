@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 
-using {{ model.module }}.Application.{{ model.feature }}.Read.GetDetails;
-
 namespace {{ model.module }}.Presentation.Features.{{ model.feature }}.Read.GetDetails;
 
 internal sealed class Get{{ model.resource }}DetailsEndpoint : IEndpoint<{{ model.feature }}Endpoints>
@@ -26,9 +24,10 @@ internal sealed class Get{{ model.resource }}DetailsEndpoint : IEndpoint<{{ mode
         CancellationToken cancellationToken)
     {
         var result = await mediator.QueryAsync(
-            new Get{{ model.resource }}DetailsQuery({{ if model.child }}{{ model.child.route_id }}, {{ end }}id), cancellationToken);
+            {{ model.resource }}DetailsMapper.ToQuery({{ if model.child }}parentId: {{ model.child.route_id }}, {{ end }}id: id),
+            cancellationToken);
 
-        return result.ToHttpResult(dto =>
-            TypedResults.Ok({{ model.resource }}DetailsMapper.ToResponse(dto)));
+        return result.ToHttpResult(onSuccess: dto =>
+            TypedResults.Ok(value: {{ model.resource }}DetailsMapper.ToResponse(dto: dto)));
     }
 }

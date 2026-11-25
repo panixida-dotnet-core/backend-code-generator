@@ -1,9 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 
-{{ if model.has_search_filter }}using {{ model.module }}.Application.{{ model.feature }}.Common.Filters;
-{{ end }}using {{ model.module }}.Application.{{ model.feature }}.Read.GetList;
-
 namespace {{ model.module }}.Presentation.Features.{{ model.feature }}.Read.GetList;
 
 internal sealed class Get{{ model.feature }}ListEndpoint : IEndpoint<{{ model.feature }}Endpoints>
@@ -15,8 +12,8 @@ internal sealed class Get{{ model.feature }}ListEndpoint : IEndpoint<{{ model.fe
     public void Map(EndpointMapBuilder builder)
     {
         builder.MapGet(builder.Route, HandleAsync)
-            .Produces<PaginationResult<{{ model.resource }}ListItemResponse>>(StatusCodes.Status200OK){{ if model.has_compound_list || model.child || model.has_search_filter }}
-            .ProducesValidationProblem(StatusCodes.Status400BadRequest){{ end }}{{ if model.child }}
+            .Produces<PaginationResult<{{ model.resource }}ListItemResponse>>(StatusCodes.Status200OK)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest){{ if model.child }}
             .ProducesProblem(StatusCodes.Status404NotFound){{ end }};
     }
 
@@ -29,14 +26,14 @@ internal sealed class Get{{ model.feature }}ListEndpoint : IEndpoint<{{ model.fe
         CancellationToken cancellationToken)
     {
         var result = await mediator.QueryAsync(
-            new Get{{ model.feature }}ListQuery(
-{{ if model.child }}                {{ model.child.route_id }},
-{{ end }}{{ if model.has_search_filter }}                new {{ model.feature }}Filter(search),
-{{ end }}                paginationParameters,
-                sortingParameters),
+            Get{{ model.feature }}ListMapper.ToQuery(
+{{ if model.child }}                parentId: {{ model.child.route_id }},
+{{ end }}{{ if model.has_search_filter }}                search: search,
+{{ end }}                paginationParameters: paginationParameters,
+                sortingParameters: sortingParameters),
             cancellationToken);
 
-        return result.ToHttpResult(item
-            => TypedResults.Ok(Get{{ model.feature }}ListMapper.ToResponse(item)));
+        return result.ToHttpResult(onSuccess: page =>
+            TypedResults.Ok(value: Get{{ model.feature }}ListMapper.ToResponse(page: page)));
     }
 }

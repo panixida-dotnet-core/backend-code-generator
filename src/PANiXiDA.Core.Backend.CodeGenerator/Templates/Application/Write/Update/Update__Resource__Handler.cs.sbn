@@ -4,7 +4,7 @@ using {{ model.domain }};
 
 namespace {{ model.module }}.Application.{{ model.feature }}.Write.Update;
 
-public sealed class Update{{ model.resource }}Handler(I{{ if model.child }}{{ model.child.parent_feature }}{{ else }}{{ model.feature }}{{ end }}Repository repository)
+public sealed class Update{{ model.resource }}Handler(I{{ model.aggregate_feature }}Repository {{ model.write_repository_parameter }})
     : ICommandHandler<Update{{ model.resource }}Command, Result>, IRequireTransaction
 {
     public async Task<Result> HandleAsync(
@@ -17,9 +17,9 @@ public sealed class Update{{ model.resource }}Handler(I{{ if model.child }}{{ mo
    fields = model.update_fields
    fail_start = "Result.Failure("
    fail_end = ")"
-   include "BindCompoundValues.sbn" }}        return parent.{{ model.child.update_method }}({{ if model.update_fields.size > 0 }}
-            idResult.Value,
-{{ for field in model.update_fields }}            {{ if field.composite }}{{ field.local_name }}Value{{ else }}command.{{ field.name }}{{ end }}{{ if !for.last }},
+   include "BindDomainValues.sbn" }}        return parent.{{ model.child.update_method }}({{ if model.update_fields.size > 0 }}
+            @{{ model.child.update_id_parameter }}: idResult.Value,
+{{ for field in model.update_fields }}            @{{ field.parameter_name }}: {{ if field.binds_domain_value }}{{ field.local_name }}Value{{ else }}command.{{ field.name }}{{ end }}{{ if !for.last }},
 {{ end }}{{ end }}{{ else }}idResult.Value{{ end }});
 {{ else }}        var idResult = {{ model.id }}.Create(command.Id);
 
@@ -28,7 +28,7 @@ public sealed class Update{{ model.resource }}Handler(I{{ if model.child }}{{ mo
             return Result.Failure(idResult.Errors);
         }
 
-        var entity = await repository.GetByIdAsync(
+        var entity = await {{ model.write_repository_parameter }}.GetByIdAsync(
             idResult.Value,
             cancellationToken);
 
@@ -42,8 +42,8 @@ public sealed class Update{{ model.resource }}Handler(I{{ if model.child }}{{ mo
 {{ fields = model.update_fields
    fail_start = "Result.Failure("
    fail_end = ")"
-   include "BindCompoundValues.sbn" }}        var updateResult = entity.Update({{ if model.update_fields.size > 0 }}
-{{ for field in model.update_fields }}            {{ if field.composite }}{{ field.local_name }}Value{{ else }}command.{{ field.name }}{{ end }}{{ if !for.last }},
+   include "BindDomainValues.sbn" }}        var updateResult = entity.Update({{ if model.update_fields.size > 0 }}
+{{ for field in model.update_fields }}            @{{ field.parameter_name }}: {{ if field.binds_domain_value }}{{ field.local_name }}Value{{ else }}command.{{ field.name }}{{ end }}{{ if !for.last }},
 {{ end }}{{ end }}{{ end }});
 
         if (updateResult.IsFailure)
@@ -51,7 +51,7 @@ public sealed class Update{{ model.resource }}Handler(I{{ if model.child }}{{ mo
             return updateResult;
         }
 
-        repository.Update(entity);
+        {{ model.write_repository_parameter }}.Update(entity);
 
         return Result.Success();
 {{ end }}    }

@@ -1,4 +1,4 @@
-namespace {{ model.module }}.Application.{{ model.feature }}.Read.GetList;
+namespace {{ model.module }}.Application.{{ model.read_feature }}.Read.GetList;
 
 {{ fields = model.list_fields
    access = "public"

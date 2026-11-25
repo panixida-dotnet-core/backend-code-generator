@@ -49,7 +49,7 @@ public sealed class FieldModelTests
         quantity.Type.ShouldBe("int?");
         quantity.ValueMember.ShouldBe("Value.Value");
         compound.NullableStruct.ShouldBeTrue();
-        compound.Components.ShouldBe([new ValueComponent("Count", "int?"), new ValueComponent("Text", "string?")]);
+        compound.Components.ShouldBe([new ValueComponent("Count", "int?", "count"), new ValueComponent("Text", "string?", "text")]);
         reference.Type.ShouldBe("string?");
         reference.HasMaxLength.ShouldBeFalse();
         Describe(nameof(FieldSamples.NonIntegerLength)).HasMaxLength.ShouldBeFalse();

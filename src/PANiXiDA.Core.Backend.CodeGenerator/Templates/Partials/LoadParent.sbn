@@ -4,7 +4,7 @@
             return {{ failure }}(parentIdResult.Errors);
         }
 
-        var parent = await repository.GetByIdAsync(parentIdResult.Value, cancellationToken);
+        var parent = await {{ model.write_repository_parameter }}.GetByIdAsync(parentIdResult.Value, cancellationToken);
         if (parent is null)
         {
             return {{ failure }}(

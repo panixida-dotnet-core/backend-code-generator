@@ -12,6 +12,9 @@ internal sealed record CodeField(
 {
     public bool Composite => Components is not null;
 
+    public string? ParameterName { get; init; }
+    public bool BindsDomainValue { get; init; }
+
     public string LocalName => char.ToLowerInvariant(Name[0]) + Name[1..];
 
     public bool RequiredString => Type == "string";

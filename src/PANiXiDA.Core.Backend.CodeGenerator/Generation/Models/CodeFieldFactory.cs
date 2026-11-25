@@ -90,16 +90,19 @@ internal static class CodeFieldFactory
                 item => string.Equals(item.Name, parameter.Name, StringComparison.OrdinalIgnoreCase));
             var underlying = Nullable.GetUnderlyingType(parameter.ParameterType) ?? parameter.ParameterType;
             var optional = IsOptional(parameter.ParameterType, nullability.Create(parameter));
+            var bindsDomainValue = field?.ValueObject == $"global::{underlying.FullName}";
             if (field is null
-                || !MatchesParameter(field, underlying, optional)
-                || bound.Contains(field))
+                || field.Optional != optional
+                || (!bindsDomainValue && (!s_scalarNames.TryGetValue(underlying, out var scalar)
+                    || field.Type != (optional ? scalar + "?" : scalar)))
+                || bound.Any(item => item.Name == field.Name))
             {
                 var parameterName = $"{method.DeclaringType!.Name}.{method.Name}({parameter.Name})";
                 throw new InvalidOperationException(
                     $"'{parameterName}' must match a writable domain property and its input type.");
             }
 
-            bound.Add(field);
+            bound.Add(field with { ParameterName = parameter.Name, BindsDomainValue = bindsDomainValue });
         }
 
         return [.. bound];
@@ -200,21 +203,10 @@ internal static class CodeFieldFactory
                 return null;
             }
 
-            components.Add(new ValueComponent(property.Name, optional ? scalar + "?" : scalar));
+            components.Add(new ValueComponent(property.Name, optional ? scalar + "?" : scalar, parameter.Name!));
         }
 
         return [.. components];
-    }
-
-    private static bool MatchesParameter(CodeField field, Type parameterType, bool optional)
-    {
-        if (field.Composite)
-        {
-            return field.Optional == optional && field.ValueObject == $"global::{parameterType.FullName}";
-        }
-
-        return s_scalarNames.TryGetValue(parameterType, out var scalar)
-            && field.Type == (optional ? scalar + "?" : scalar);
     }
 
     private static bool IsOptional(Type type, NullabilityInfo nullability) =>

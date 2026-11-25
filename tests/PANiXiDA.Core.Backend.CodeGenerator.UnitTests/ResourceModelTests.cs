@@ -43,6 +43,19 @@ public sealed class ResourceModelTests
         error.Message.ShouldContain(message);
     }
 
+    [Fact(DisplayName = "Read projections do not require unused write operations")]
+    public void ReadsAggregateWithoutUpdateOperation()
+    {
+        var target = Target(nameof(MissingUpdateRoot));
+
+        var model = ResourceModelFactory.Create(
+            typeof(ValidRoot).Assembly, target, Settings(target), includeCreate: false, includeUpdate: false);
+
+        model.CreateFields.ShouldBeEmpty();
+        model.UpdateFields.ShouldBeEmpty();
+        model.DetailsFields.Select(field => field.Name).ShouldContain("Id");
+    }
+
     [Theory(DisplayName = "Require a lowercase segment for an aggregate route")]
     [InlineData(null)]
     [InlineData("Products/Children")]
@@ -89,7 +102,7 @@ public sealed class ResourceModelTests
         var child = ResourceModelFactory.CreateChild(typeof(ValidRoot).Assembly, parent, parent.ForChild(settings),
             "roots", settings, ["ChildGetListHandler"]);
 
-        child.Route.ShouldBe("roots/{validRootId:guid}/variants");
+        child.Route.ShouldBe("roots/{validrootid:guid}/variants");
         child.CreateFields.ShouldBeEmpty();
         child.UpdateFields.ShouldBeEmpty();
     }

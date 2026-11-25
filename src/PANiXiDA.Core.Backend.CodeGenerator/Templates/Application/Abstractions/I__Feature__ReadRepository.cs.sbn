@@ -1,20 +1,39 @@
-{{ if model.has_search_filter }}using {{ model.module }}.Application.{{ model.feature }}.Common.Filters;
-{{ end }}{{ if model.has_details_read_model }}using {{ model.module }}.Application.{{ model.feature }}.Read.GetDetails;
-{{ end }}{{ if model.has_list_item_read_model }}using {{ model.module }}.Application.{{ model.feature }}.Read.GetList;
-{{ end }}{{ if model.has_details_read_model || model.has_list_item_read_model }}
-{{ end }}namespace {{ model.module }}.Application.{{ if model.child }}{{ model.child.parent_feature }}{{ else }}{{ model.feature }}{{ end }}.Abstractions;
+{{ has_details = model.has_details_read_model
+   has_list = model.has_list_item_read_model
+   has_search = model.has_search_filter
+   for child in model.child_read_contracts
+       has_details = has_details || child.has_details_read_model
+       has_list = has_list || child.has_list_item_read_model
+       has_search = has_search || child.has_search_filter
+   end }}{{ if model.has_search_filter }}using {{ model.module }}.Application.{{ model.feature }}.Common.Filters;
+{{ end }}{{ for child in model.child_read_contracts }}{{ if child.has_search_filter }}using {{ model.module }}.Application.{{ child.feature }}.Common.Filters;
+{{ end }}{{ end }}{{ if has_details }}using {{ model.module }}.Application.{{ model.feature }}.Read.GetDetails;
+{{ end }}{{ if has_list }}using {{ model.module }}.Application.{{ model.feature }}.Read.GetList;
+{{ end }}{{ if has_details || has_list || has_search }}
+{{ end }}namespace {{ model.module }}.Application.{{ model.feature }}.Abstractions;
 
-public partial interface I{{ if model.child }}{{ model.child.parent_feature }}{{ else }}{{ model.feature }}{{ end }}ReadRepository{{ if !model.child }} : IReadRepository<Guid>{{ end }}
+public interface I{{ model.feature }}ReadRepository : IReadRepository<Guid>
 {
-{{ if model.has_details_read_model }}    Task<{{ model.resource }}DetailsReadModel?> {{ if model.child }}Get{{ model.child.collection }}ItemByIdAsync{{ else }}GetByIdAsync{{ end }}(
-{{ if model.child }}        Guid parentId,
-{{ end }}        Guid id,
+{{ if model.has_details_read_model }}    Task<{{ model.resource }}DetailsReadModel?> GetByIdAsync(
+        Guid id,
         CancellationToken cancellationToken);
 {{ end }}{{ if model.has_list_item_read_model }}{{ if model.has_details_read_model }}
-{{ end }}    Task<PaginationResult<{{ model.resource }}ListItemReadModel>{{ if model.child }}?{{ end }}> {{ if model.child }}Get{{ model.child.collection }}PageAsync{{ else }}GetPagedListAsync{{ end }}(
-{{ if model.child }}        Guid parentId,
-{{ end }}{{ if model.has_search_filter }}        {{ model.feature }}Filter filter,
+{{ end }}    Task<PaginationResult<{{ model.resource }}ListItemReadModel>> GetPagedListAsync(
+{{ if model.has_search_filter }}        {{ model.feature }}Filter filter,
 {{ end }}        PaginationParameters paginationParameters,
         SortingParameters sortingParameters,
         CancellationToken cancellationToken);
-{{ end }}}
+{{ end }}{{ has_methods = model.has_details_read_model || model.has_list_item_read_model
+}}{{ for child in model.child_read_contracts }}{{ if child.has_details_read_model }}{{ if has_methods }}
+{{ end }}    Task<{{ child.resource }}DetailsReadModel?> Get{{ child.child.collection }}ItemByIdAsync(
+        Guid parentId,
+        Guid id,
+        CancellationToken cancellationToken);
+{{ has_methods = true }}{{ end }}{{ if child.has_list_item_read_model }}{{ if has_methods }}
+{{ end }}    Task<PaginationResult<{{ child.resource }}ListItemReadModel>> Get{{ child.child.collection }}PageAsync(
+        Guid parentId,
+{{ if child.has_search_filter }}        {{ child.feature }}Filter filter,
+{{ end }}        PaginationParameters paginationParameters,
+        SortingParameters sortingParameters,
+        CancellationToken cancellationToken);
+{{ has_methods = true }}{{ end }}{{ end }}}

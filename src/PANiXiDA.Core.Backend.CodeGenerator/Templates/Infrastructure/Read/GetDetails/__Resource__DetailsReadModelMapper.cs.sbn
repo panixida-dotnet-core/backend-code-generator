@@ -1,17 +1,18 @@
 {{ if model.has_compound_details }}using System.Text.Json;
 
-{{ end }}using {{ model.module }}.Application.{{ model.feature }}.Read.GetDetails;
-using {{ model.module }}.Infrastructure.Persistence.Features.{{ model.feature }}.Read.DbModels;
+{{ end }}using {{ model.module }}.Application.{{ model.read_feature }}.Read.GetDetails;
+using {{ model.module }}.Infrastructure.Persistence.Features.{{ model.read_feature }}.Read.DbModels;
 
-{{ if !model.has_compound_details }}using Riok.Mapperly.Abstractions;
+{{ if !model.has_compound_details && !model.child }}using Riok.Mapperly.Abstractions;
 
-{{ end }}namespace {{ model.module }}.Infrastructure.Persistence.Features.{{ model.feature }}.Read.GetDetails;
+{{ end }}namespace {{ model.module }}.Infrastructure.Persistence.Features.{{ model.read_feature }}.Read.GetDetails;
 
-{{ if !model.has_compound_details }}[Mapper(RequiredMappingStrategy = RequiredMappingStrategy.Target)]
-{{ end }}internal sealed {{ if !model.has_compound_details }}partial {{ end }}class {{ model.resource }}DetailsReadModelMapper
-    : IReadModelMapper<Guid, {{ model.resource }}ReadDbModel, {{ model.resource }}DetailsReadModel>
+{{ if !model.has_compound_details && !model.child }}[Mapper(RequiredMappingStrategy = RequiredMappingStrategy.Target)]
+{{ end }}internal sealed {{ if !model.has_compound_details && !model.child }}partial {{ end }}class {{ model.resource }}DetailsReadModelMapper
+    : IReadModelMapper<Guid, {{ model.read_db_resource }}ReadDbModel, {{ model.resource }}DetailsReadModel>
 {
-{{ if model.has_compound_details }}{{ fields = model.details_fields
+{{ if model.has_compound_details || model.child }}{{ fields = model.details_fields
+   has_compound = model.has_compound_details
    dto_name = model.resource + "DetailsReadModel"
    include "ReadCompoundProjection.sbn" }}
 {{ else }}    public static partial IQueryable<{{ model.resource }}DetailsReadModel> ProjectTo(

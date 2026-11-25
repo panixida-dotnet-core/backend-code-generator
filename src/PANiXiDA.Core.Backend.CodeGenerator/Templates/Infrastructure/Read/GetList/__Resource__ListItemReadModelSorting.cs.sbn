@@ -1,6 +1,6 @@
-using {{ model.module }}.Application.{{ model.feature }}.Read.GetList;
+using {{ model.module }}.Application.{{ model.read_feature }}.Read.GetList;
 
-namespace {{ model.module }}.Infrastructure.Persistence.Features.{{ model.feature }}.Read.GetList;
+namespace {{ model.module }}.Infrastructure.Persistence.Features.{{ model.read_feature }}.Read.GetList;
 
 internal sealed partial class {{ model.resource }}ListItemReadModelSorting
     : IReadModelSorting<{{ model.resource }}ListItemReadModel>

@@ -1,13 +1,20 @@
-{{ if model.has_compound_fields }}using System.ComponentModel.DataAnnotations.Schema;
+{{ if model.has_compound_fields || model.child }}using System.ComponentModel.DataAnnotations.Schema;
 
-{{ end }}{{ if model.child }}using {{ model.module }}.Infrastructure.Persistence.Features.{{ model.child.parent_feature }}.Read.DbModels;
+{{ end }}{{ if model.child }}using Microsoft.EntityFrameworkCore;
 
-{{ end }}namespace {{ model.module }}.Infrastructure.Persistence.Features.{{ model.feature }}.Read.DbModels;
+{{ end }}namespace {{ model.module }}.Infrastructure.Persistence.Features.{{ model.read_feature }}.Read.DbModels;
 
-public sealed class {{ model.resource }}ReadDbModel : {{ if !model.child }}Auditable{{ end }}ReadDbModel<Guid>
-{
+{{ if model.child }}[Owned]
+[Table("{{ model.child.table }}")]
+[PrimaryKey(nameof(ParentId), nameof(Id))]
+public sealed class {{ model.resource }}ReadDbModel
+{{ else }}public sealed partial class {{ model.resource }}ReadDbModel : AuditableReadDbModel<Guid>
+{{ end }}{
 {{ if model.child }}    public Guid ParentId { get; set; }
 
+    public Guid Id { get; set; }
+
+    [ForeignKey(nameof(ParentId))]
     public {{ model.child.parent_resource }}ReadDbModel? Parent { get; set; }
 {{ if model.fields.size > 0 }}
 {{ end }}{{ end }}{{ first_property = true
@@ -17,3 +24,9 @@ public sealed class {{ model.resource }}ReadDbModel : {{ if !model.child }}Audit
 {{ else }}    public {{ if field.required_string }}required {{ end }}{{ field.type }} {{ field.name }} { get; set; }
 {{ end }}{{ first_property = false
    previous_compound = field.composite }}{{ end }}}
+{{ if model.child }}
+public sealed partial class {{ model.child.parent_resource }}ReadDbModel
+{
+    public List<{{ model.resource }}ReadDbModel> {{ model.child.collection }} { get; set; } = [];
+}
+{{ end }}

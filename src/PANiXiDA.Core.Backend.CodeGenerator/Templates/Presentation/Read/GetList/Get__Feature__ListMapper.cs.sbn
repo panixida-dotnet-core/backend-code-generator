@@ -1,4 +1,5 @@
-using {{ model.module }}.Application.{{ model.feature }}.Read.GetList;
+{{ if model.has_search_filter }}using {{ model.module }}.Application.{{ model.feature }}.Common.Filters;
+{{ end }}using {{ model.module }}.Application.{{ model.read_feature }}.Read.GetList;
 
 using Riok.Mapperly.Abstractions;
 
@@ -7,6 +8,17 @@ namespace {{ model.module }}.Presentation.Features.{{ model.feature }}.Read.GetL
 [Mapper(IncludedConstructors = MemberVisibility.All)]
 internal static partial class Get{{ model.feature }}ListMapper
 {
+    internal static Get{{ model.feature }}ListQuery ToQuery(
+{{ if model.child }}        Guid parentId,
+{{ end }}{{ if model.has_search_filter }}        string? search,
+{{ end }}        PaginationParameters paginationParameters,
+        SortingParameters sortingParameters) =>
+        new(
+{{ if model.child }}            ParentId: parentId,
+{{ end }}{{ if model.has_search_filter }}            Filter: new {{ model.feature }}Filter(search),
+{{ end }}            PaginationParameters: paginationParameters,
+            SortingParameters: sortingParameters);
+
     internal static partial PaginationResult<{{ model.resource }}ListItemResponse> ToResponse(
-        PaginationResult<{{ model.resource }}ListItemReadModel> pagedResult);
+        PaginationResult<{{ model.resource }}ListItemReadModel> page);
 }

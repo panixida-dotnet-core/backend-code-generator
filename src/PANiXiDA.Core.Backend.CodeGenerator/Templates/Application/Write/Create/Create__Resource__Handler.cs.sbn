@@ -13,7 +13,7 @@ using {{ model.domain }}.Abstractions;
 
 namespace {{ model.module }}.Application.{{ model.feature }}.Write.Create;
 
-public sealed class Create{{ model.resource }}Handler(I{{ repository_feature }}Repository repository)
+public sealed class Create{{ model.resource }}Handler(I{{ repository_feature }}Repository {{ model.write_repository_parameter }})
     : ICommandHandler<Create{{ model.resource }}Command, Result<Guid>>{{ if model.child }}, IRequireTransaction{{ end }}
 {
     public {{ if model.child }}async {{ end }}Task<Result<Guid>> HandleAsync(
@@ -36,13 +36,13 @@ public sealed class Create{{ model.resource }}Handler(I{{ repository_feature }}R
                 result_name = "entityResult"
                 factory = "global::" + model.domain + "." + model.resource + ".Create"
             end
-            include "BindCompoundValues.sbn"
+            include "BindDomainValues.sbn"
         ~}}
         var {{ result_name }} = {{ factory }}(
         {{- for field in fields
-            argument = field.composite ? field.local_name + "Value" : "command." + field.name
+            argument = field.binds_domain_value ? field.local_name + "Value" : "command." + field.name
         }}
-            {{ argument }}{{ if !for.last }},{{ end -}}
+            @{{ field.parameter_name }}: {{ argument }}{{ if !for.last }},{{ end -}}
         {{ end -}}
         );
 
@@ -56,7 +56,7 @@ public sealed class Create{{ model.resource }}Handler(I{{ repository_feature }}R
             return Task.FromResult(Result.Failure<Guid>(entityResult.Errors));
         }
 
-        repository.Add(entityResult.Value);
+        {{ model.write_repository_parameter }}.Add(entityResult.Value);
 
         return Task.FromResult(Result.Success(entityResult.Value.Id.Value));
         {{~ end ~}}

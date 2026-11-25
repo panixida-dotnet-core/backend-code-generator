@@ -1,6 +1,6 @@
 using {{ model.domain }};
 
-namespace {{ model.module }}.Application.{{ model.feature }}.Read.GetDetails;
+namespace {{ model.module }}.Application.{{ model.read_feature }}.Read.GetDetails;
 
 public sealed class Get{{ model.resource }}DetailsQueryValidator : AbstractValidator<Get{{ model.resource }}DetailsQuery>
 {

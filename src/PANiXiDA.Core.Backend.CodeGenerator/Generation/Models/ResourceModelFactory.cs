@@ -1,6 +1,8 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 
+using Humanizer;
+
 using PANiXiDA.Core.Backend.CodeGenerator.Configuration;
 using PANiXiDA.Core.Backend.CodeGenerator.Generation.Domain;
 
@@ -8,7 +10,12 @@ namespace PANiXiDA.Core.Backend.CodeGenerator.Generation.Models;
 
 internal static class ResourceModelFactory
 {
-    internal static ResourceModel Create(Assembly domainAssembly, ResourceTarget target, ResourceSettings settings)
+    internal static ResourceModel Create(
+        Assembly domainAssembly,
+        ResourceTarget target,
+        ResourceSettings settings,
+        bool includeCreate = true,
+        bool includeUpdate = true)
     {
         if (!IsRoute(settings.Route))
         {
@@ -20,17 +27,21 @@ internal static class ResourceModelFactory
         var id = DomainTypeInspector.GetId(aggregate, DomainTypeInspector.AggregateRootType);
         var nullability = new NullabilityInfoContext();
         var fields = CodeFieldFactory.GetFields(aggregate, nullability);
-        var create = DomainTypeInspector.GetOperation(
-            aggregate, DomainTypeInspector.CreateMethodName, isStatic: true, payload: aggregate);
-        var update = DomainTypeInspector.GetOperation(aggregate, "Update", isStatic: false, payload: null);
+        var create = includeCreate
+            ? DomainTypeInspector.GetOperation(
+                aggregate, DomainTypeInspector.CreateMethodName, isStatic: true, payload: aggregate)
+            : null;
+        var update = includeUpdate
+            ? DomainTypeInspector.GetOperation(aggregate, "Update", isStatic: false, payload: null)
+            : null;
 
         return MakeModel(
             target,
             id,
             settings.Route,
             (fields,
-                CodeFieldFactory.BindParameters(create, fields, nullability),
-                CodeFieldFactory.BindParameters(update, fields, nullability)),
+                create is null ? [] : CodeFieldFactory.BindParameters(create, fields, nullability),
+                update is null ? [] : CodeFieldFactory.BindParameters(update, fields, nullability)),
             (settings.DetailsFields, settings.ListFields));
     }
 
@@ -88,13 +99,17 @@ internal static class ResourceModelFactory
             routeId,
             settings.Collection,
             entity.Name,
+            entity.Name.Pluralize(inputIsKnownToBeSingular: false).Underscore().ToLowerInvariant(),
+            [.. CodeFieldFactory.GetFields(aggregate, nullability)
+                .Where(field => field.RequiredString || (field.Composite && !field.Optional))],
             settings.CreateMethod,
             settings.UpdateMethod,
+            update?.GetParameters()[0].Name,
             settings.DeleteMethod);
         return MakeModel(
             target,
             id,
-            $"{parentRoute}/{{{routeId}:guid}}/{settings.Route}",
+            $"{parentRoute}/{{{routeId.ToLowerInvariant()}:guid}}/{settings.Route}",
             (fields, createFields, updateFields),
             (settings.DetailsFields, settings.ListFields),
             child);

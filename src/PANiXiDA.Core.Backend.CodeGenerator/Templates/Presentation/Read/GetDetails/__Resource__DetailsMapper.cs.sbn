@@ -1,4 +1,4 @@
-using {{ model.module }}.Application.{{ model.feature }}.Read.GetDetails;
+using {{ model.module }}.Application.{{ model.read_feature }}.Read.GetDetails;
 
 using Riok.Mapperly.Abstractions;
 
@@ -7,5 +7,8 @@ namespace {{ model.module }}.Presentation.Features.{{ model.feature }}.Read.GetD
 [Mapper]
 internal static partial class {{ model.resource }}DetailsMapper
 {
+    internal static Get{{ model.resource }}DetailsQuery ToQuery({{ if model.child }}Guid parentId, {{ end }}Guid id) =>
+        new({{ if model.child }}ParentId: parentId, {{ end }}Id: id);
+
     internal static partial {{ model.resource }}DetailsResponse ToResponse({{ model.resource }}DetailsReadModel dto);
 }

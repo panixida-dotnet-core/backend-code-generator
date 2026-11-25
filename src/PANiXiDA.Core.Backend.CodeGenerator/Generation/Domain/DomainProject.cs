@@ -47,7 +47,8 @@ internal sealed record DomainProject(string ProjectFile, string Module, string M
         throw new InvalidOperationException($"'{aggregate}' must match '{prefix}<Feature>.<Aggregate>'.");
     }
 
-    internal async Task<Assembly> BuildAsync(string repositoryRoot, CancellationToken cancellationToken)
+    internal async Task<(Assembly Assembly, AssemblyLoadContext Context)> BuildAsync(
+        string repositoryRoot, CancellationToken cancellationToken)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -131,12 +132,12 @@ internal sealed record DomainProject(string ProjectFile, string Module, string M
         return targetPath;
     }
 
-    internal static Assembly LoadAssembly(string targetPath)
+    internal static (Assembly Assembly, AssemblyLoadContext Context) LoadAssembly(string targetPath)
     {
         var context = new DomainLoadContext(targetPath);
         try
         {
-            return context.LoadFile(targetPath);
+            return (context.LoadFile(targetPath), context);
         }
         catch
         {

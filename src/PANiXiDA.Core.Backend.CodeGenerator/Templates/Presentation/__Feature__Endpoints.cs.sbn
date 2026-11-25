@@ -1,5 +1,6 @@
 using Asp.Versioning;
 
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 
 namespace {{ model.module }}.Presentation.Features.{{ model.feature }};
@@ -14,6 +15,8 @@ internal sealed class {{ model.feature }}Endpoints : IEndpointGroup
 
     public void Map(IEndpointRouteBuilder endpoints)
     {
-        EndpointMapper.MapGroupEndpoints<{{ model.feature }}Endpoints>(endpoints);
+        EndpointMapper
+            .MapGroupEndpoints<{{ model.feature }}Endpoints>(endpoints)
+            .RequireAuthorization();
     }
 }

@@ -1,6 +1,6 @@
 {{ if model.has_search_filter && model.has_filter_validator }}using {{ model.module }}.Application.{{ model.feature }}.Common.Filters;
 
-{{ end }}namespace {{ model.module }}.Application.{{ model.feature }}.Read.GetList;
+{{ end }}namespace {{ model.module }}.Application.{{ model.read_feature }}.Read.GetList;
 
 public sealed class Get{{ model.feature }}ListQueryValidator : AbstractValidator<Get{{ model.feature }}ListQuery>
 {
@@ -18,21 +18,12 @@ public sealed class Get{{ model.feature }}ListQueryValidator : AbstractValidator
             .SetValidator(new {{ model.feature }}FilterValidator()){{ end }};
 
 {{ end }}        RuleFor(query => query.PaginationParameters)
-            .NotNull();
-
-        When(
-            query => query.PaginationParameters is not null,
-            () =>
-            {
-                RuleFor(query => query.PaginationParameters.PageNumber)
-                    .GreaterThan(0);
-
-                RuleFor(query => query.PaginationParameters.PageSize)
-                    .GreaterThan(0);
-            });
+            .NotNull()
+            .SetValidator(new PaginationParametersValidator());
 
         RuleFor(query => query.SortingParameters)
-            .NotNull();
+            .NotNull()
+            .SetValidator(new {{ model.resource }}ListItemReadModelSortingValidator());
 {{ if model.has_compound_list }}
         RuleForEach(query => query.SortingParameters.Fields)
             .Must(field => field is not null

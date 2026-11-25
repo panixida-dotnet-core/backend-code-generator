@@ -1,3 +1,4 @@
+using Organization.Product.Module.Domain.Products.Entities.ProductVariants;
 using Organization.Product.Module.Domain.Products.Enumerations;
 using Organization.Product.Module.Domain.Products.ValueObjects;
 
@@ -7,7 +8,7 @@ public sealed class Product : AggregateRoot<ProductId>
 {
     private readonly List<ProductVariant> _variants = [];
 
-    private Product(ProductId id, ProductName name, ProductKind kind, string? description, Money? listPrice)
+    private Product(ProductId id, ProductName name, ProductKind kind, ProductDescription? description, Money? listPrice)
         : base(id)
     {
         Name = name;
@@ -18,44 +19,35 @@ public sealed class Product : AggregateRoot<ProductId>
 
     public ProductName Name { get; private set; }
     public ProductKind Kind { get; private set; }
-    public string? Description { get; private set; }
+    public ProductDescription? Description { get; private set; }
     public Money? ListPrice { get; private set; }
 
-    public IReadOnlyCollection<ProductVariant> Variants => _variants;
+    public IReadOnlyCollection<ProductVariant> Variants => _variants.AsReadOnly();
 
-    public static Result<Product> Create(string name, string kind, string? description, Money? listPrice)
+    public static Result<Product> Create(
+        ProductName name,
+        ProductKind kind,
+        ProductDescription? description,
+        Money? listPrice) =>
+        Result.Success(new Product(
+            id: ProductId.New(),
+            name: name,
+            kind: kind,
+            description: description,
+            listPrice: listPrice));
+
+    public Result Update(ProductName name, ProductKind kind, ProductDescription? description, Money? listPrice)
     {
-        var nameResult = ProductName.Create(name);
-        var kindResult = ProductKind.Create(kind);
-        var validation = Result.Combine(nameResult, kindResult);
-        if (validation.IsFailure)
-        {
-            return Result.Failure<Product>(validation.Errors);
-        }
-
-        return Result.Success(new Product(ProductId.New(), nameResult.Value, kindResult.Value, description, listPrice));
-    }
-
-    public Result Update(string name, string kind, string? description, Money? listPrice)
-    {
-        var nameResult = ProductName.Create(name);
-        var kindResult = ProductKind.Create(kind);
-        var validation = Result.Combine(nameResult, kindResult);
-        if (validation.IsFailure)
-        {
-            return Result.Failure(validation.Errors);
-        }
-
-        Name = nameResult.Value;
-        Kind = kindResult.Value;
+        Name = name;
+        Kind = kind;
         Description = description;
         ListPrice = listPrice;
         return Result.Success();
     }
 
-    public Result<ProductVariantId> AddVariant(string sku, Money price, int stock)
+    public Result<ProductVariantId> AddVariant(ProductSku sku, Money price, InventoryStock stock)
     {
-        var variantResult = ProductVariant.Create(sku, price, stock);
+        var variantResult = ProductVariant.Create(sku: sku, price: price, stock: stock);
         if (variantResult.IsFailure)
         {
             return Result.Failure<ProductVariantId>(variantResult.Errors);
@@ -66,12 +58,12 @@ public sealed class Product : AggregateRoot<ProductId>
         return Result.Success(variant.Id);
     }
 
-    public Result UpdateVariant(ProductVariantId id, string sku, Money price, int stock)
+    public Result UpdateVariant(ProductVariantId id, ProductSku sku, Money price, InventoryStock stock)
     {
         var variant = _variants.Find(item => item.Id == id);
         return variant is null
             ? Result.Failure(Error.NotFound("Product variant was not found."))
-            : variant.Update(sku, price, stock);
+            : variant.Update(sku: sku, price: price, stock: stock);
     }
 
     public Result RemoveVariant(ProductVariantId id)

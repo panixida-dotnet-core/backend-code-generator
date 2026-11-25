@@ -1,4 +1,4 @@
-namespace Organization.Product.Module.Domain.Products;
+namespace Organization.Product.Module.Domain.Products.Entities.ProductVariants;
 
 public readonly record struct ProductVariantId : IStronglyTypedId
 {
