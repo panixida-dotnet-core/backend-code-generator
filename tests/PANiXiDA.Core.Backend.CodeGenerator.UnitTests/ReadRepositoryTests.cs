@@ -11,11 +11,12 @@ public sealed class ReadRepositoryTests
     public async Task GeneratesOnlyAvailableOperations(bool details, bool list)
     {
         using var backend = new ScratchBackend();
+        var parent = ScratchBackend.Job("IReadRepository", "ReadRepository", "ReadDbModel");
+        parent["models"]![0]!.AsObject().Remove("children");
         var jobs = new List<JsonObject>
         {
-            ScratchBackend.Job(
-                "IReadRepository", "ReadRepository", "ReadDbModel",
-                "ChildReadRepository", "ChildReadDbModel")
+            parent,
+            ScratchBackend.Job("ChildReadRepository", "ChildReadDbModel")
         };
         if (details)
         {
