@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace PANiXiDA.Core.Backend.CodeGenerator.Generation;
+namespace PANiXiDA.Core.Backend.CodeGenerator.Generation.Domain;
 
 internal static class DomainTypeInspector
 {

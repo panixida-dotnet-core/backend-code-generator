@@ -3,8 +3,8 @@ using System.Text.Json.Serialization;
 
 using Microsoft.Extensions.Configuration;
 
+using PANiXiDA.Core.Backend.CodeGenerator.Configuration;
 using PANiXiDA.Core.Backend.CodeGenerator.FileSystem;
-using PANiXiDA.Core.Backend.CodeGenerator.Generation;
 
 namespace PANiXiDA.Core.Backend.CodeGenerator;
 

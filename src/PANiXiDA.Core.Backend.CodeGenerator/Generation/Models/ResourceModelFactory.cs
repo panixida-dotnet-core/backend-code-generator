@@ -1,9 +1,10 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 
-using PANiXiDA.Core.Backend.CodeGenerator.Generation.Models;
+using PANiXiDA.Core.Backend.CodeGenerator.Configuration;
+using PANiXiDA.Core.Backend.CodeGenerator.Generation.Domain;
 
-namespace PANiXiDA.Core.Backend.CodeGenerator.Generation;
+namespace PANiXiDA.Core.Backend.CodeGenerator.Generation.Models;
 
 internal static class ResourceModelFactory
 {

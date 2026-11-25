@@ -1,4 +1,6 @@
-namespace PANiXiDA.Core.Backend.CodeGenerator.Generation;
+using PANiXiDA.Core.Backend.CodeGenerator.Configuration;
+
+namespace PANiXiDA.Core.Backend.CodeGenerator.Generation.Domain;
 
 internal sealed record ResourceTarget(DomainProject Project, string Feature, string Resource)
 {

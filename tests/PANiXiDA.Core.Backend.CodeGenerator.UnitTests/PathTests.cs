@@ -3,7 +3,7 @@ using System.Diagnostics;
 using Scriban;
 
 using PANiXiDA.Core.Backend.CodeGenerator.FileSystem;
-using PANiXiDA.Core.Backend.CodeGenerator.Generation;
+using PANiXiDA.Core.Backend.CodeGenerator.Generation.Domain;
 using PANiXiDA.Core.Backend.CodeGenerator.Templating;
 
 namespace PANiXiDA.Core.Backend.CodeGenerator.UnitTests;

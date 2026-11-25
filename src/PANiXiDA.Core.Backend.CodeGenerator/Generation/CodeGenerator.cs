@@ -1,3 +1,4 @@
+using PANiXiDA.Core.Backend.CodeGenerator.Configuration;
 using PANiXiDA.Core.Backend.CodeGenerator.FileSystem;
 
 namespace PANiXiDA.Core.Backend.CodeGenerator.Generation;

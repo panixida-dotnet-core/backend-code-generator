@@ -1,4 +1,4 @@
-namespace PANiXiDA.Core.Backend.CodeGenerator.Generation;
+namespace PANiXiDA.Core.Backend.CodeGenerator.Generation.Domain;
 
 internal static class ModuleLayer
 {

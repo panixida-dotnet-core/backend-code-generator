@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 
 using PANiXiDA.Core.Backend.CodeGenerator.FileSystem;
 
-namespace PANiXiDA.Core.Backend.CodeGenerator.Generation;
+namespace PANiXiDA.Core.Backend.CodeGenerator.Generation.Domain;
 
 internal sealed record DomainProject(string ProjectFile, string Module, string ModuleName)
 {

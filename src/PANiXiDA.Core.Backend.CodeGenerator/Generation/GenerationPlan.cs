@@ -6,7 +6,9 @@ using Scriban;
 using Scriban.Runtime;
 using Scriban.Syntax;
 
+using PANiXiDA.Core.Backend.CodeGenerator.Configuration;
 using PANiXiDA.Core.Backend.CodeGenerator.FileSystem;
+using PANiXiDA.Core.Backend.CodeGenerator.Generation.Domain;
 using PANiXiDA.Core.Backend.CodeGenerator.Generation.Models;
 using PANiXiDA.Core.Backend.CodeGenerator.Templating;
 
