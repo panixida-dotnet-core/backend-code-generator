@@ -27,8 +27,7 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
     private readonly Dictionary<string, Assembly> _domains = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _paths = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _routes = new(StringComparer.Ordinal);
-
-    internal List<OutputChange> Changes { get; } = [];
+    private readonly List<PlannedArtifact> _outputs = [];
 
     public void Dispose()
     {
@@ -53,6 +52,24 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
         {
             AddModel(job, project, assembly, settings, rootArtifacts, childArtifacts);
         }
+    }
+
+    internal List<OutputChange> BuildChanges(CancellationToken cancellationToken)
+    {
+        var changes = new List<OutputChange>(_outputs.Count);
+        foreach (var output in _outputs)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var model = GetTemplateModel(output);
+            var change = PlanChange(
+                repository, output.Owner, model, output.Job, output.Artifact, output.Path, _parsedTemplates);
+            if (change is not null)
+            {
+                changes.Add(change);
+            }
+        }
+
+        return changes;
     }
 
     internal static Dictionary<string, TemplateArtifact> LoadCatalog(IEnumerable<string> paths)
@@ -164,19 +181,44 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
 
         foreach (var artifact in artifacts)
         {
-            var path = GetOutputPath(repository, target, job, artifact);
+            var path = GetOutputPath(repository, target, job, artifact)!;
             if (!_paths.Add(path) || Directory.Exists(path))
             {
                 throw new InvalidOperationException(
                     $"'{GetRelativePath(repository, path)}' is not a unique file path.");
             }
 
-            var change = PlanChange(repository, owner, model, job, artifact, path, _parsedTemplates);
-            if (change is not null)
-            {
-                Changes.Add(change);
-            }
+            _outputs.Add(new PlannedArtifact(target, owner, model, job, artifact, path));
         }
+    }
+
+    private ResourceModel? GetTemplateModel(PlannedArtifact output)
+    {
+        if (output.Model is null
+            || output.Artifact.Name is not
+                ("IReadRepository" or "ReadRepository" or "ChildIReadRepository" or "ChildReadRepository"))
+        {
+            return output.Model;
+        }
+
+        return output.Model with
+        {
+            HasDetailsReadModel = HasReadModel(output, "DetailsReadModel"),
+            HasListItemReadModel = HasReadModel(output, "ListItemReadModel")
+        };
+    }
+
+    private bool HasReadModel(PlannedArtifact output, string name)
+    {
+        var artifactName = output.Artifact.Child ? ChildArtifactPrefix + name : name;
+        if (_outputs.Any(candidate => candidate.Target == output.Target
+            && candidate.Artifact.Name == artifactName && !candidate.Job.DeleteGenerated))
+        {
+            return true;
+        }
+
+        var path = GetOutputPath(repository, output.Target, output.Job, _catalog[artifactName], required: false);
+        return path is not null && !_paths.Contains(path) && File.Exists(path);
     }
 
     private void ValidateJob(JobSettings? job)
@@ -227,11 +269,12 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
         }
     }
 
-    private static string GetOutputPath(
+    private static string? GetOutputPath(
         RepositoryLayout repository,
         ResourceTarget target,
         JobSettings job,
-        TemplateArtifact artifact)
+        TemplateArtifact artifact,
+        bool required = true)
     {
         var file = artifact.RelativePath.Replace(ResourcePlaceholder, target.Resource, StringComparison.Ordinal)
             .Replace(FeaturePlaceholder, target.Feature, StringComparison.Ordinal);
@@ -242,7 +285,8 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
             return repository.ResolvePath(Path.Combine(destination, Path.GetFileName(file)), repository.Root);
         }
 
-        return repository.ResolvePath(Path.Combine(target.DefaultDirectory(artifact.Layer), file), repository.Root);
+        var directory = required ? target.DefaultDirectory(artifact.Layer) : target.FindDefaultDirectory(artifact.Layer);
+        return directory is null ? null : repository.ResolvePath(Path.Combine(directory, file), repository.Root);
     }
 
     private static OutputChange? PlanChange(
@@ -324,4 +368,7 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
 
     private static string GetRelativePath(RepositoryLayout repository, string path) =>
         Path.GetRelativePath(repository.Root, path);
+
+    private sealed record PlannedArtifact(
+        ResourceTarget Target, string Owner, ResourceModel? Model, JobSettings Job, TemplateArtifact Artifact, string Path);
 }

@@ -17,8 +17,8 @@ internal static class CodeGenerator
             await plan.AddJobAsync(job, cancellationToken);
         }
 
+        var changes = plan.BuildChanges(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        var changes = plan.Changes;
         OutputChange.ApplyAll(changes);
         return changes;
     }

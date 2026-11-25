@@ -15,6 +15,10 @@ internal sealed record ResourceModel(
     IReadOnlyList<CodeField> ListFields,
     ChildModel? Child = null)
 {
+    public bool HasDetailsReadModel { get; init; }
+
+    public bool HasListItemReadModel { get; init; }
+
     public CodeField[] CreateValidationFields => [.. CreateFields.Where(item => item.HasValidation)];
 
     public CodeField[] UpdateValidationFields => [.. UpdateFields.Where(item => item.HasValidation)];

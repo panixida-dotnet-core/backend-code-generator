@@ -112,6 +112,8 @@ The example generates two files. See the [full CRUD example](tests/PANiXiDA.Core
 
 For example, `"templates": { "CreateCommand": "Templates/MyCreate.sbn", "DtoRecord.sbn": "Templates/MyDto.sbn" }` overrides one artifact and one shared partial for the job. All other templates come from the package. Pass `templateBaseDirectory: "tools/Acme.Store.CodeGenerator"` to resolve the example overrides next to the tool project. The overload that takes a JSON path resolves relative overrides from that file's directory.
 
+The generated read repository includes each method when its corresponding `DetailsReadModel` or `ListItemReadModel` is selected by any job for that resource, or already exists at its default or configured output path. The same rule applies to `Child*` read artifacts. Select the corresponding mapper and, for list queries, sorting artifact if those files do not already exist.
+
 Review the generated files before committing them to your backend repository.
 
 ## Development

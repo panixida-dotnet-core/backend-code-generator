@@ -21,7 +21,17 @@ internal sealed record ResourceTarget(DomainProject Project, string Feature, str
         return new ResourceTarget(Project, Resource + child.Collection, child.Resource);
     }
 
-    internal string DefaultDirectory(string layer)
+    internal string DefaultDirectory(string layer) => GetDefaultDirectory(layer, required: true)!;
+
+    internal string? FindDefaultDirectory(string layer) => GetDefaultDirectory(layer, required: false);
+
+    internal string ExpandOutputDirectory(string directory) =>
+        directory.Replace("{Module}", Project.Module, StringComparison.Ordinal)
+            .Replace("{ModuleName}", Project.ModuleName, StringComparison.Ordinal)
+            .Replace("{Feature}", Feature, StringComparison.Ordinal)
+            .Replace("{Resource}", Resource, StringComparison.Ordinal);
+
+    private string? GetDefaultDirectory(string layer, bool required)
     {
         var domainDirectory = Path.GetDirectoryName(Project.ProjectFile)!;
         if (layer == ModuleLayer.Domain)
@@ -29,14 +39,22 @@ internal sealed record ResourceTarget(DomainProject Project, string Feature, str
             return Path.Combine(domainDirectory, Feature);
         }
 
-        var moduleDirectory = Path.GetDirectoryName(domainDirectory)
-            ?? throw new InvalidOperationException($"'{Project.ProjectFile}' has no module directory.");
+        var moduleDirectory = Path.GetDirectoryName(domainDirectory);
+        if (moduleDirectory is null)
+        {
+            return required
+                ? throw new InvalidOperationException($"'{Project.ProjectFile}' has no module directory.")
+                : null;
+        }
+
         var projectName = $"{Project.Module}.{layer}";
         var projectDirectory = Path.Combine(moduleDirectory, projectName);
 
         if (!File.Exists(Path.Combine(projectDirectory, $"{projectName}.csproj")))
         {
-            throw new InvalidOperationException($"Project '{projectName}' was not found in '{moduleDirectory}'.");
+            return required
+                ? throw new InvalidOperationException($"Project '{projectName}' was not found in '{moduleDirectory}'.")
+                : null;
         }
 
         return layer switch
@@ -47,10 +65,4 @@ internal sealed record ResourceTarget(DomainProject Project, string Feature, str
             _ => throw new InvalidOperationException($"Unknown template layer '{layer}'.")
         };
     }
-
-    internal string ExpandOutputDirectory(string directory) =>
-        directory.Replace("{Module}", Project.Module, StringComparison.Ordinal)
-            .Replace("{ModuleName}", Project.ModuleName, StringComparison.Ordinal)
-            .Replace("{Feature}", Feature, StringComparison.Ordinal)
-            .Replace("{Resource}", Resource, StringComparison.Ordinal);
 }

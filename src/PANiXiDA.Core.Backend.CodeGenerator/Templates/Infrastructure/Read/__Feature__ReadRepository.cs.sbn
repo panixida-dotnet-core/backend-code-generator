@@ -1,13 +1,13 @@
-{{ if model.child }}using Microsoft.EntityFrameworkCore;
+{{ child_has_reads = model.child && (model.has_details_read_model || model.has_list_item_read_model) }}{{ if child_has_reads }}using Microsoft.EntityFrameworkCore;
 
 {{ end }}using {{ model.module }}.Application.{{ model.feature }}.Abstractions;
-using {{ model.module }}.Application.{{ model.feature }}.Read.GetDetails;
-using {{ model.module }}.Application.{{ model.feature }}.Read.GetList;
-using {{ model.module }}.Infrastructure.Persistence.Core;
+{{ if model.has_details_read_model }}using {{ model.module }}.Application.{{ model.feature }}.Read.GetDetails;
+{{ end }}{{ if model.has_list_item_read_model }}using {{ model.module }}.Application.{{ model.feature }}.Read.GetList;
+{{ end }}using {{ model.module }}.Infrastructure.Persistence.Core;
 using {{ model.module }}.Infrastructure.Persistence.Features.{{ model.feature }}.Read.DbModels;
-using {{ model.module }}.Infrastructure.Persistence.Features.{{ model.feature }}.Read.GetDetails;
-using {{ model.module }}.Infrastructure.Persistence.Features.{{ model.feature }}.Read.GetList;
-{{ if model.child }}using {{ model.module }}.Infrastructure.Persistence.Features.{{ model.child.parent_feature }}.Read.DbModels;
+{{ if model.has_details_read_model }}using {{ model.module }}.Infrastructure.Persistence.Features.{{ model.feature }}.Read.GetDetails;
+{{ end }}{{ if model.has_list_item_read_model }}using {{ model.module }}.Infrastructure.Persistence.Features.{{ model.feature }}.Read.GetList;
+{{ end }}{{ if child_has_reads }}using {{ model.module }}.Infrastructure.Persistence.Features.{{ model.child.parent_feature }}.Read.DbModels;
 {{ end }}
 namespace {{ model.module }}.Infrastructure.Persistence.Features.{{ model.feature }}.Read;
 
@@ -15,10 +15,10 @@ public sealed class {{ model.feature }}ReadRepository({{ model.module_name }}Rea
     EfReadRepository<{{ model.module_name }}ReadDbContext, Guid, {{ model.resource }}ReadDbModel>(dbContext),
     I{{ model.feature }}ReadRepository
 {
-{{ if model.child }}    private readonly IQueryable<{{ model.child.parent_resource }}ReadDbModel> _parents =
+{{ if child_has_reads }}    private readonly IQueryable<{{ model.child.parent_resource }}ReadDbModel> _parents =
         dbContext.Set<{{ model.child.parent_resource }}ReadDbModel>();
 
-{{ end }}    public Task<{{ model.resource }}DetailsReadModel?> GetByIdAsync(
+{{ end }}{{ if model.has_details_read_model }}    public Task<{{ model.resource }}DetailsReadModel?> GetByIdAsync(
 {{ if model.child }}        Guid parentId,
 {{ end }}        Guid id,
         CancellationToken cancellationToken)
@@ -31,8 +31,8 @@ public sealed class {{ model.feature }}ReadRepository({{ model.module_name }}Rea
             id,
             cancellationToken);
 {{ end }}    }
-
-    public {{ if model.child }}async {{ end }}Task<PaginationResult<{{ model.resource }}ListItemReadModel>{{ if model.child }}?{{ end }}> GetPagedListAsync(
+{{ end }}{{ if model.has_list_item_read_model }}{{ if model.has_details_read_model }}
+{{ end }}    public {{ if model.child }}async {{ end }}Task<PaginationResult<{{ model.resource }}ListItemReadModel>{{ if model.child }}?{{ end }}> GetPagedListAsync(
 {{ if model.child }}        Guid parentId,
 {{ end }}        PaginationParameters paginationParameters,
         SortingParameters sortingParameters,
@@ -52,4 +52,4 @@ public sealed class {{ model.feature }}ReadRepository({{ model.module_name }}Rea
                 sortingParameters,
                 cancellationToken);
     }
-}
+{{ end }}}
