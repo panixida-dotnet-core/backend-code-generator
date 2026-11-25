@@ -7,6 +7,7 @@ using Scriban.Runtime;
 using Scriban.Syntax;
 
 using PANiXiDA.Core.Backend.CodeGenerator.FileSystem;
+using PANiXiDA.Core.Backend.CodeGenerator.Generation.Models;
 using PANiXiDA.Core.Backend.CodeGenerator.Templating;
 
 namespace PANiXiDA.Core.Backend.CodeGenerator.Generation;
@@ -79,7 +80,7 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
         var target = project.Locate(settings.Aggregate);
         if (rootArtifacts.Length > 0)
         {
-            var model = assembly is null ? null : ResourceModel.Create(assembly, target, settings);
+            var model = assembly is null ? null : ResourceModelFactory.Create(assembly, target, settings);
             AddArtifacts(target, target.Aggregate, model, job, rootArtifacts);
         }
 
@@ -109,7 +110,7 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
             var childTarget = target.ForChild(child);
             var model = assembly is null
                 ? null
-                : ResourceModel.CreateChild(assembly, target, childTarget, settings.Route, child, childNames);
+                : ResourceModelFactory.CreateChild(assembly, target, childTarget, settings.Route, child, childNames);
             AddArtifacts(childTarget, $"{target.Aggregate}.{child.Collection}", model, job, artifacts);
         }
     }

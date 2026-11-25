@@ -1,6 +1,7 @@
 using System.Reflection;
 
 using PANiXiDA.Core.Backend.CodeGenerator.Generation;
+using PANiXiDA.Core.Backend.CodeGenerator.Generation.Models;
 
 namespace PANiXiDA.Core.Backend.CodeGenerator.UnitTests;
 
@@ -65,7 +66,7 @@ public sealed class FieldModelTests
     public void RejectsIncompatibleMethodInputs(string method, string property)
     {
         var exception = Should.Throw<InvalidOperationException>(() =>
-            ResourceModel.BindParameters(typeof(FieldSamples).GetMethod(method)!, [Describe(property)], new()));
+            CodeFieldFactory.BindParameters(typeof(FieldSamples).GetMethod(method)!, [Describe(property)], new()));
 
         exception.Message.ShouldContain("match a writable domain property");
     }
@@ -76,7 +77,7 @@ public sealed class FieldModelTests
     public void RequiresLeadingId(string method)
     {
         var exception = Should.Throw<InvalidOperationException>(() =>
-            ResourceModel.BindParameters(typeof(FieldSamples).GetMethod(method)!, [], new(), typeof(Guid)));
+            CodeFieldFactory.BindParameters(typeof(FieldSamples).GetMethod(method)!, [], new(), typeof(Guid)));
 
         exception.Message.ShouldContain("must take 'Guid' first");
     }
@@ -91,11 +92,11 @@ public sealed class FieldModelTests
         var fields = new[] { new CodeField("Id", "Guid", false, null, null, false), Describe(nameof(FieldSamples.Count)) };
 
         var exception = Should.Throw<InvalidOperationException>(() =>
-            ResourceModel.SelectProjection(names, fields, "detailsFields"));
+            CodeFieldFactory.SelectProjection(names, fields, "detailsFields"));
 
         exception.Message.ShouldContain(message);
     }
 
     private static CodeField Describe(string name) =>
-        ResourceModel.DescribeField(typeof(FieldSamples).GetProperty(name)!, new NullabilityInfoContext());
+        CodeFieldFactory.DescribeField(typeof(FieldSamples).GetProperty(name)!, new NullabilityInfoContext());
 }

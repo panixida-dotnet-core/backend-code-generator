@@ -14,7 +14,7 @@ public sealed class ResourceModelTests
     {
         var target = Target(nameof(ValidRoot));
 
-        var model = ResourceModel.Create(typeof(ValidRoot).Assembly, target, Settings(target));
+        var model = ResourceModelFactory.Create(typeof(ValidRoot).Assembly, target, Settings(target));
 
         model.Fields.Select(field => field.Name).ShouldBe([nameof(ValidRoot.Count)]);
     }
@@ -37,7 +37,7 @@ public sealed class ResourceModelTests
         var target = Target(type);
 
         var error = Should.Throw<InvalidOperationException>(() =>
-            ResourceModel.Create(typeof(ValidRoot).Assembly, target, Settings(target)));
+            ResourceModelFactory.Create(typeof(ValidRoot).Assembly, target, Settings(target)));
 
         error.Message.ShouldContain(message);
     }
@@ -50,7 +50,7 @@ public sealed class ResourceModelTests
         var target = Target(nameof(ValidRoot));
 
         var error = Should.Throw<InvalidOperationException>(() =>
-            ResourceModel.Create(typeof(ValidRoot).Assembly, target, Settings(target) with { Route = route! }));
+            ResourceModelFactory.Create(typeof(ValidRoot).Assembly, target, Settings(target) with { Route = route! }));
 
         error.Message.ShouldContain("lowercase, single-segment");
     }
@@ -73,7 +73,7 @@ public sealed class ResourceModelTests
         var parent = Target(nameof(ValidRoot));
         var settings = new ChildSettings(collection, "Child", childRoute, ["Id"], ["Id"], method, "UpdateVariant", "RemoveVariant");
 
-        var error = Should.Throw<InvalidOperationException>(() => ResourceModel.CreateChild(
+        var error = Should.Throw<InvalidOperationException>(() => ResourceModelFactory.CreateChild(
             typeof(ValidRoot).Assembly, parent, parent.ForChild(settings), rootRoute, settings, ["ChildCreateHandler"]));
 
         error.Message.ShouldContain(message);
@@ -85,7 +85,7 @@ public sealed class ResourceModelTests
         var parent = Target(nameof(ValidRoot));
         var settings = new ChildSettings(nameof(ValidRoot.Variants), "Variant", "variants", ["Id"], ["Id"]);
 
-        var child = ResourceModel.CreateChild(typeof(ValidRoot).Assembly, parent, parent.ForChild(settings),
+        var child = ResourceModelFactory.CreateChild(typeof(ValidRoot).Assembly, parent, parent.ForChild(settings),
             "roots", settings, ["ChildGetListHandler"]);
 
         child.Route.ShouldBe("roots/{validRootId:guid}/variants");
