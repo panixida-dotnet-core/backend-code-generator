@@ -1,5 +1,8 @@
 using System.Text.Json.Nodes;
 
+using PANiXiDA.Core.Backend.CodeGenerator.Generation;
+using PANiXiDA.Core.Backend.CodeGenerator.Templating;
+
 namespace PANiXiDA.Core.Backend.CodeGenerator.UnitTests;
 
 public sealed class PlanningTests

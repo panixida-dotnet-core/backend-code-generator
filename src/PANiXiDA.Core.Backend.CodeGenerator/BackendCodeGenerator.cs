@@ -1,6 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+using PANiXiDA.Core.Backend.CodeGenerator.FileSystem;
+using PANiXiDA.Core.Backend.CodeGenerator.Generation;
+
 namespace PANiXiDA.Core.Backend.CodeGenerator;
 
 /// <summary>

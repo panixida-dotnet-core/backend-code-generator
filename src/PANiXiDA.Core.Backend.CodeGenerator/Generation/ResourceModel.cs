@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 
-namespace PANiXiDA.Core.Backend.CodeGenerator;
+namespace PANiXiDA.Core.Backend.CodeGenerator.Generation;
 
 internal sealed record ResourceModel(
     string Module,

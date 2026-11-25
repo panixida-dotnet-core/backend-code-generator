@@ -1,5 +1,8 @@
 using System.Diagnostics;
 
+using PANiXiDA.Core.Backend.CodeGenerator.FileSystem;
+using PANiXiDA.Core.Backend.CodeGenerator.Generation;
+
 namespace PANiXiDA.Core.Backend.CodeGenerator.UnitTests;
 
 public sealed class DomainProjectTests

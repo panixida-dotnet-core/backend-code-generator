@@ -1,4 +1,4 @@
-namespace PANiXiDA.Core.Backend.CodeGenerator;
+namespace PANiXiDA.Core.Backend.CodeGenerator.FileSystem;
 
 internal sealed record OutputChange(string Path, byte[]? Before, byte[]? After)
 {

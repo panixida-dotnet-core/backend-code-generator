@@ -1,3 +1,5 @@
+using PANiXiDA.Core.Backend.CodeGenerator.FileSystem;
+
 namespace PANiXiDA.Core.Backend.CodeGenerator.UnitTests;
 
 public sealed class OutputPlanTests

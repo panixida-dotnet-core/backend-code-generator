@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace PANiXiDA.Core.Backend.CodeGenerator;
+namespace PANiXiDA.Core.Backend.CodeGenerator.Templating;
 
 internal static class EmbeddedTemplates
 {

@@ -1,4 +1,4 @@
-namespace PANiXiDA.Core.Backend.CodeGenerator;
+namespace PANiXiDA.Core.Backend.CodeGenerator.Generation;
 
 internal sealed record GeneratorSettings(IReadOnlyList<JobSettings>? Jobs);
 

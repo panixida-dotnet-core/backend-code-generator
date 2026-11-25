@@ -4,7 +4,9 @@ using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using System.Text.RegularExpressions;
 
-namespace PANiXiDA.Core.Backend.CodeGenerator;
+using PANiXiDA.Core.Backend.CodeGenerator.FileSystem;
+
+namespace PANiXiDA.Core.Backend.CodeGenerator.Generation;
 
 internal sealed record DomainProject(string ProjectFile, string Module, string ModuleName)
 {

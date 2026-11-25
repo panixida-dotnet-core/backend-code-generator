@@ -6,7 +6,10 @@ using Scriban;
 using Scriban.Runtime;
 using Scriban.Syntax;
 
-namespace PANiXiDA.Core.Backend.CodeGenerator;
+using PANiXiDA.Core.Backend.CodeGenerator.FileSystem;
+using PANiXiDA.Core.Backend.CodeGenerator.Templating;
+
+namespace PANiXiDA.Core.Backend.CodeGenerator.Generation;
 
 internal static class CrudGenerator
 {

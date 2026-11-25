@@ -2,7 +2,9 @@ using Scriban;
 using Scriban.Parsing;
 using Scriban.Runtime;
 
-namespace PANiXiDA.Core.Backend.CodeGenerator;
+using PANiXiDA.Core.Backend.CodeGenerator.FileSystem;
+
+namespace PANiXiDA.Core.Backend.CodeGenerator.Templating;
 
 internal sealed class PartialTemplateLoader(
     RepositoryLayout repository,
