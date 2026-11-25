@@ -1,15 +1,16 @@
-using {{ model.module }}.Application.{{ model.feature }}.Abstractions;
+{{ repository_feature = model.child ? model.child.parent_feature : model.feature
+   repository_name = (repository_feature | string.slice 0 1 | string.downcase) + (repository_feature | string.slice 1) + "ReadRepository" }}using {{ model.module }}.Application.{{ repository_feature }}.Abstractions;
 
 namespace {{ model.module }}.Application.{{ model.feature }}.Read.GetList;
 
-public sealed class Get{{ model.feature }}ListHandler(I{{ model.feature }}ReadRepository repository)
+public sealed class Get{{ model.feature }}ListHandler(I{{ repository_feature }}ReadRepository {{ repository_name }})
     : IQueryHandler<Get{{ model.feature }}ListQuery, Result<PaginationResult<{{ model.resource }}ListItemReadModel>>>
 {
     public async Task<Result<PaginationResult<{{ model.resource }}ListItemReadModel>>> HandleAsync(
         Get{{ model.feature }}ListQuery query,
         CancellationToken cancellationToken)
     {
-        var items = await repository.GetPagedListAsync(
+        var items = await {{ repository_name }}.{{ if model.child }}Get{{ model.child.collection }}PageAsync{{ else }}GetPagedListAsync{{ end }}(
 {{ if model.child }}            query.ParentId,
 {{ end }}{{ if model.has_search_filter }}            query.Filter,
 {{ end }}            query.PaginationParameters,

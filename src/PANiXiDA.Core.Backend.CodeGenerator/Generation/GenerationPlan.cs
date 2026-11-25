@@ -21,6 +21,8 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
     private const string ChildArtifactPrefix = "Child";
     private const string EndpointsArtifactName = "Endpoints";
     private const string ChildEndpointsArtifactName = ChildArtifactPrefix + EndpointsArtifactName;
+    private const string ChildReadRepositoryName = "ChildReadRepository";
+    private const string ChildIReadRepositoryName = "ChildIReadRepository";
 
     private readonly Dictionary<string, TemplateArtifact> _catalog = LoadCatalog(EmbeddedTemplates.Paths);
     private readonly Dictionary<string, Template> _parsedTemplates = new(StringComparer.Ordinal);
@@ -163,12 +165,13 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
             var model = assembly is null
                 ? null
                 : ResourceModelFactory.CreateChild(assembly, target, childTarget, settings.Route, child, childNames);
-            AddArtifacts(childTarget, $"{target.Aggregate}.{child.Collection}", model, job, artifacts);
+            AddArtifacts(childTarget, $"{target.Aggregate}.{child.Collection}", model, job, artifacts, target);
         }
     }
 
     private void AddArtifacts(
-        ResourceTarget target, string owner, ResourceModel? model, JobSettings job, TemplateArtifact[] artifacts)
+        ResourceTarget target, string owner, ResourceModel? model, JobSettings job, TemplateArtifact[] artifacts,
+        ResourceTarget? parent = null)
     {
         if (model is not null
             && artifacts.Any(artifact => artifact.Name is EndpointsArtifactName or ChildEndpointsArtifactName))
@@ -181,7 +184,7 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
 
         foreach (var artifact in artifacts)
         {
-            var path = GetOutputPath(repository, target, job, artifact)!;
+            var path = GetOutputPath(repository, target, job, artifact, parent: parent)!;
             if (!_paths.Add(path) || Directory.Exists(path))
             {
                 throw new InvalidOperationException(
@@ -280,10 +283,18 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
         ResourceTarget target,
         JobSettings job,
         TemplateArtifact artifact,
-        bool required = true)
+        bool required = true,
+        ResourceTarget? parent = null)
     {
+        var repositoryParent = artifact.Name is ChildReadRepositoryName or ChildIReadRepositoryName ? parent : null;
+        var directoryTarget = repositoryParent ?? target;
         var file = artifact.RelativePath.Replace(ResourcePlaceholder, target.Resource, StringComparison.Ordinal)
-            .Replace(FeaturePlaceholder, target.Feature, StringComparison.Ordinal);
+            .Replace(FeaturePlaceholder, directoryTarget.Feature, StringComparison.Ordinal);
+        if (repositoryParent is not null)
+        {
+            file = $"{file[..^".cs".Length]}.{target.Feature}.cs";
+        }
+
         if (job.OutputDirectory?.TryGetValue(artifact.Name, out var configuredDirectory) == true)
         {
             var expanded = target.ExpandOutputDirectory(configuredDirectory);
@@ -291,7 +302,9 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
             return repository.ResolvePath(Path.Combine(destination, Path.GetFileName(file)), repository.Root);
         }
 
-        var directory = required ? target.DefaultDirectory(artifact.Layer) : target.FindDefaultDirectory(artifact.Layer);
+        var directory = required
+            ? directoryTarget.DefaultDirectory(artifact.Layer)
+            : directoryTarget.FindDefaultDirectory(artifact.Layer);
         return directory is null ? null : repository.ResolvePath(Path.Combine(directory, file), repository.Root);
     }
 

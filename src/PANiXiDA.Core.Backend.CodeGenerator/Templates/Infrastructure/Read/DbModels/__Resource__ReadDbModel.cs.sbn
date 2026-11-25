@@ -1,10 +1,14 @@
 {{ if model.has_compound_fields }}using System.ComponentModel.DataAnnotations.Schema;
 
+{{ end }}{{ if model.child }}using {{ model.module }}.Infrastructure.Persistence.Features.{{ model.child.parent_feature }}.Read.DbModels;
+
 {{ end }}namespace {{ model.module }}.Infrastructure.Persistence.Features.{{ model.feature }}.Read.DbModels;
 
 public sealed class {{ model.resource }}ReadDbModel : {{ if !model.child }}Auditable{{ end }}ReadDbModel<Guid>
 {
 {{ if model.child }}    public Guid ParentId { get; set; }
+
+    public {{ model.child.parent_resource }}ReadDbModel? Parent { get; set; }
 {{ if model.fields.size > 0 }}
 {{ end }}{{ end }}{{ first_property = true
    previous_compound = false }}{{ for field in model.fields }}{{ if !first_property && (field.composite || previous_compound) }}

@@ -32,11 +32,15 @@ public sealed class ReadRepositoryTests
 
         var files = await backend.RunAsync([.. jobs]);
 
-        var sources = files.Where(file => file.Path.EndsWith("ReadRepository.cs", StringComparison.Ordinal))
+        var sources = files.Where(file => Path.GetFileName(file.Path).Contains("ReadRepository", StringComparison.Ordinal))
             .Select(file => backend.Read(file.Path))
             .ToArray();
         sources.Length.ShouldBe(4);
-        foreach (var source in sources)
+        sources.ShouldAllBe(source => source.Contains("partial ", StringComparison.Ordinal));
+        sources.ShouldAllBe(source => !source.Contains(" ProductVariantsReadRepository", StringComparison.Ordinal));
+        var parents = files.Where(file => Path.GetFileName(file.Path) is "IProductsReadRepository.cs" or "ProductsReadRepository.cs")
+            .Select(file => backend.Read(file.Path));
+        foreach (var source in parents)
         {
             source.Contains(".Read.GetDetails;", StringComparison.Ordinal).ShouldBe(details);
             source.Contains("GetByIdAsync(", StringComparison.Ordinal).ShouldBe(details);
@@ -44,6 +48,54 @@ public sealed class ReadRepositoryTests
             source.Contains("GetPagedListAsync(", StringComparison.Ordinal).ShouldBe(list);
         }
 
+        var children = files.Where(file => file.Path.EndsWith("ReadRepository.ProductVariants.cs", StringComparison.Ordinal))
+            .Select(file => backend.Read(file.Path))
+            .ToArray();
+        children.Length.ShouldBe(2);
+        foreach (var source in children)
+        {
+            source.Contains("GetVariantsItemByIdAsync(", StringComparison.Ordinal).ShouldBe(details);
+            source.Contains("GetVariantsPageAsync(", StringComparison.Ordinal).ShouldBe(list);
+        }
+
+        await backend.BuildLayerAsync("Infrastructure");
+    }
+
+    [Fact(DisplayName = "Add multiple child collections to an existing aggregate read repository")]
+    public async Task ExtendsExistingRepositoryWithMultipleChildren()
+    {
+        using var backend = new ScratchBackend();
+        var productPath = $"{ScratchBackend.DomainDirectory}/Products/Product.cs";
+        var product = backend.Read(productPath).Replace(
+            "public IReadOnlyCollection<ProductVariant> Variants => _variants;",
+            """
+            public IReadOnlyCollection<ProductVariant> Variants => _variants;
+                public IReadOnlyCollection<ProductVariant> AlternateVariants => _variants;
+            """,
+            StringComparison.Ordinal);
+        backend.Write(productPath, product);
+        await backend.RunAsync(ScratchBackend.Job("IReadRepository", "ReadRepository", "ReadDbModel"));
+
+        var job = ScratchBackend.Job(
+            "ChildReadDbModel", "ChildIReadRepository", "ChildReadRepository",
+            "ChildDetailsReadModel", "ChildDetailsReadModelMapper",
+            "ChildListItemReadModel", "ChildListItemReadModelMapper", "ChildListItemReadModelSorting",
+            "ChildFilter", "ChildFilterValidator");
+        var children = job["models"]![0]!["children"]!.AsArray();
+        var alternate = children[0]!.DeepClone().AsObject();
+        alternate["collection"] = "AlternateVariants";
+        alternate["route"] = "alternate-variants";
+        children.Add(alternate);
+
+        var files = await backend.RunAsync(job);
+
+        var repositories = files.Where(file => Path.GetFileName(file.Path).Contains("ReadRepository.", StringComparison.Ordinal))
+            .ToArray();
+        repositories.Length.ShouldBe(4);
+        repositories.ShouldAllBe(file => file.Path.Contains($"{Path.DirectorySeparatorChar}Products{Path.DirectorySeparatorChar}", StringComparison.Ordinal));
+        repositories.Select(file => backend.Read(file.Path)).ShouldContain(source =>
+            source.Contains("GetAlternateVariantsItemByIdAsync(", StringComparison.Ordinal)
+            && source.Contains("GetAlternateVariantsPageAsync(", StringComparison.Ordinal));
         await backend.BuildLayerAsync("Infrastructure");
     }
 

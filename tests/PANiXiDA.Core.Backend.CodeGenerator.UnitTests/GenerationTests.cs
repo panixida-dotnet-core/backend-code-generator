@@ -23,8 +23,10 @@ public sealed class GenerationTests
         code.ShouldContain(source => source.Contains("parent.UpdateVariant(", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("parent.RemoveVariant(", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("item.ParentId == parentId && item.Id == id", StringComparison.Ordinal));
-        code.ShouldContain(source => source.Contains("GetPagedResultAsync", StringComparison.Ordinal)
-            && source.Contains("Query.Where(item => item.ParentId == parentId)", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("GetVariantsPageAsync(", StringComparison.Ordinal)
+            && source.Contains("_queryVariants.Where(item => item.ParentId == parentId)", StringComparison.Ordinal)
+            && source.Contains("ProductVariantListItemReadModelSorting.ApplySorting", StringComparison.Ordinal)
+            && source.Contains("PaginationResult<ProductVariantListItemReadModel>.Create", StringComparison.Ordinal));
         files.ShouldContain(file => file.Path.EndsWith(
             Path.Combine("Products", "Common", "Filters", "ProductsFilter.cs"), StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("public sealed record ProductsFilter(string? Search = null) : IFilter;", StringComparison.Ordinal));
@@ -34,8 +36,10 @@ public sealed class GenerationTests
         code.ShouldContain(source => source.Contains("query.Filter,", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("ApplyFilter(Query, filter)", StringComparison.Ordinal)
             && source.Contains("EF.Functions.ILike(item.Name", StringComparison.Ordinal));
-        code.ShouldContain(source => source.Contains("ApplyFilter(Query.Where(item => item.ParentId == parentId), filter)", StringComparison.Ordinal)
+        code.ShouldContain(source => source.Contains("query = ApplyFilter(query, filter);", StringComparison.Ordinal)
             && source.Contains("EF.Functions.ILike(item.Sku", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("productsReadRepository.GetVariantsItemByIdAsync(", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("productsReadRepository.GetVariantsPageAsync(", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("products/{productId:guid}/variants", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("OwnsMany(item => item.Variants", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("HasColumnType(\"jsonb\")", StringComparison.Ordinal));

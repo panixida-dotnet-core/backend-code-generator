@@ -1,16 +1,17 @@
-using {{ model.module }}.Application.{{ model.feature }}.Abstractions;
+{{ repository_feature = model.child ? model.child.parent_feature : model.feature
+   repository_name = (repository_feature | string.slice 0 1 | string.downcase) + (repository_feature | string.slice 1) + "ReadRepository" }}using {{ model.module }}.Application.{{ repository_feature }}.Abstractions;
 
 namespace {{ model.module }}.Application.{{ model.feature }}.Read.GetDetails;
 
 public sealed class Get{{ model.resource }}DetailsHandler(
-    I{{ model.feature }}ReadRepository repository)
+    I{{ repository_feature }}ReadRepository {{ repository_name }})
     : IQueryHandler<Get{{ model.resource }}DetailsQuery, Result<{{ model.resource }}DetailsReadModel>>
 {
     public async Task<Result<{{ model.resource }}DetailsReadModel>> HandleAsync(
         Get{{ model.resource }}DetailsQuery query,
         CancellationToken cancellationToken)
     {
-        var entity = await repository.GetByIdAsync({{ if model.child }}query.ParentId, {{ end }}query.Id, cancellationToken);
+        var entity = await {{ repository_name }}.{{ if model.child }}Get{{ model.child.collection }}ItemByIdAsync(query.ParentId, {{ else }}GetByIdAsync({{ end }}query.Id, cancellationToken);
         if (entity is null)
         {
             return Result.Failure<{{ model.resource }}DetailsReadModel>(
