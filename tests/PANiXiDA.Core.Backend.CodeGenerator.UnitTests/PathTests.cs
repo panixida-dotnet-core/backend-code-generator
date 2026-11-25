@@ -71,8 +71,9 @@ public sealed class PathTests
         Should.Throw<InvalidOperationException>(() => target.DefaultDirectory("Other"));
 
         var rootProject = new DomainProject(Path.Combine(Path.GetPathRoot(backend.Root)!, "Test.Domain.csproj"), "Test", "Test");
-        Should.Throw<InvalidOperationException>(() => new ResourceTarget(rootProject, "Products", "Product")
-            .DefaultDirectory("Application"));
+        var rootTarget = new ResourceTarget(rootProject, "Products", "Product");
+        Should.Throw<InvalidOperationException>(() => rootTarget.DefaultDirectory("Application"));
+        rootTarget.FindDefaultDirectory("Application").ShouldBeNull();
     }
 
     [Fact(DisplayName = "Report the name of an unknown shared template")]
