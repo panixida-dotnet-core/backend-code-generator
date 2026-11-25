@@ -114,6 +114,10 @@ For example, `"templates": { "CreateCommand": "Templates/MyCreate.sbn", "DtoReco
 
 The generated read repository includes each method when its corresponding `DetailsReadModel` or `ListItemReadModel` is selected by any job for that resource, or already exists at its default or configured output path. The same rule applies to `Child*` read artifacts. Select the corresponding mapper and, for list queries, sorting artifact if those files do not already exist.
 
+Select `Filter` and `FilterValidator` to generate the feature's `IFilter` record and FluentValidation validator under `Application/<Feature>/Common/Filters`. Use `ChildFilter` and `ChildFilterValidator` for a child feature. These artifacts can be generated independently of read operations.
+
+With a filter available, string fields in `listFields` enable the optional `search` query parameter. The list repository matches a case-insensitive text fragment against any of those fields before sorting and pagination. The default filter is empty if the list projection has no string fields. Generate the list endpoint, query, validator, handler, and both repository files together when enabling search on an existing feature.
+
 Review the generated files before committing them to your backend repository.
 
 ## Development

@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 
-using {{ model.module }}.Application.{{ model.feature }}.Read.GetList;
+{{ if model.has_search_filter }}using {{ model.module }}.Application.{{ model.feature }}.Common.Filters;
+{{ end }}using {{ model.module }}.Application.{{ model.feature }}.Read.GetList;
 
 namespace {{ model.module }}.Presentation.Features.{{ model.feature }}.Read.GetList;
 
@@ -14,20 +15,25 @@ internal sealed class Get{{ model.feature }}ListEndpoint : IEndpoint<{{ model.fe
     public void Map(EndpointMapBuilder builder)
     {
         builder.MapGet(builder.Route, HandleAsync)
-            .Produces<PaginationResult<{{ model.resource }}ListItemResponse>>(StatusCodes.Status200OK){{ if model.has_compound_list || model.child }}
+            .Produces<PaginationResult<{{ model.resource }}ListItemResponse>>(StatusCodes.Status200OK){{ if model.has_compound_list || model.child || model.has_search_filter }}
             .ProducesValidationProblem(StatusCodes.Status400BadRequest){{ end }}{{ if model.child }}
             .ProducesProblem(StatusCodes.Status404NotFound){{ end }};
     }
 
     private static async Task<IResult> HandleAsync(
 {{ if model.child }}        Guid {{ model.child.route_id }},
+{{ end }}{{ if model.has_search_filter }}        string? search,
 {{ end }}        [AsParameters] PaginationParameters paginationParameters,
         [AsParameters] SortingParameters sortingParameters,
         IMediator mediator,
         CancellationToken cancellationToken)
     {
         var result = await mediator.QueryAsync(
-            new Get{{ model.feature }}ListQuery({{ if model.child }}{{ model.child.route_id }}, {{ end }}paginationParameters, sortingParameters),
+            new Get{{ model.feature }}ListQuery(
+{{ if model.child }}                {{ model.child.route_id }},
+{{ end }}{{ if model.has_search_filter }}                new {{ model.feature }}Filter(search),
+{{ end }}                paginationParameters,
+                sortingParameters),
             cancellationToken);
 
         return result.ToHttpResult(item

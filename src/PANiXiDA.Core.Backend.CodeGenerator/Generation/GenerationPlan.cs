@@ -194,21 +194,27 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
 
     private ResourceModel? GetTemplateModel(PlannedArtifact output)
     {
-        if (output.Model is null
-            || output.Artifact.Name is not
-                ("IReadRepository" or "ReadRepository" or "ChildIReadRepository" or "ChildReadRepository"))
+        if (output.Model is not { } model)
         {
-            return output.Model;
+            return null;
         }
 
-        return output.Model with
+        var name = output.Artifact.Child ? output.Artifact.Name[ChildArtifactPrefix.Length..] : output.Artifact.Name;
+        var isReadRepository = name is "IReadRepository" or "ReadRepository";
+        var hasListItemReadModel = isReadRepository && HasArtifact(output, "ListItemReadModel");
+        var usesFilter = hasListItemReadModel
+            || name is "GetListQuery" or "GetListQueryValidator" or "GetListHandler" or "GetListEndpoint";
+
+        return model with
         {
-            HasDetailsReadModel = HasReadModel(output, "DetailsReadModel"),
-            HasListItemReadModel = HasReadModel(output, "ListItemReadModel")
+            HasDetailsReadModel = isReadRepository && HasArtifact(output, "DetailsReadModel"),
+            HasListItemReadModel = hasListItemReadModel,
+            HasFilter = usesFilter && HasArtifact(output, "Filter"),
+            HasFilterValidator = name == "GetListQueryValidator" && HasArtifact(output, "FilterValidator")
         };
     }
 
-    private bool HasReadModel(PlannedArtifact output, string name)
+    private bool HasArtifact(PlannedArtifact output, string name)
     {
         var artifactName = output.Artifact.Child ? ChildArtifactPrefix + name : name;
         if (_outputs.Any(candidate => candidate.Target == output.Target

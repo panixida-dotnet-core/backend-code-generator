@@ -64,6 +64,36 @@ public sealed class ReadRepositoryTests
         await backend.BuildLayerAsync("Application");
     }
 
+    [Theory(DisplayName = "Generate filter artifacts independently and use search only for text projections")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task GeneratesFiltersIndependentlyOfListArtifacts(bool hasSearchFields)
+    {
+        using var backend = new ScratchBackend();
+        var filters = hasSearchFields ? ScratchBackend.Job("Filter") : ScratchBackend.Job("Filter", "FilterValidator");
+        var list = ScratchBackend.Job("ListItemReadModel", "GetListQuery", "GetListQueryValidator");
+        if (!hasSearchFields)
+        {
+            filters["models"]![0]!["listFields"] = new JsonArray("Id");
+            list["models"]![0]!["listFields"] = new JsonArray("Id");
+        }
+
+        var filterFiles = await backend.RunAsync(filters);
+        var listFiles = await backend.RunAsync(list);
+
+        var filter = filterFiles.Single(file => Path.GetFileName(file.Path) == "ProductsFilter.cs");
+        backend.Read(filter.Path).ShouldContain(hasSearchFields
+            ? "public sealed record ProductsFilter(string? Search = null) : IFilter;"
+            : "public sealed record ProductsFilter : IFilter;");
+        filterFiles.Any(file => Path.GetFileName(file.Path) == "ProductsFilterValidator.cs").ShouldBe(!hasSearchFields);
+        var validator = listFiles.Single(file => Path.GetFileName(file.Path) == "GetProductsListQueryValidator.cs");
+        var source = backend.Read(validator.Path);
+        source.Contains("RuleFor(query => query.Filter)", StringComparison.Ordinal).ShouldBe(hasSearchFields);
+        source.ShouldNotContain("ProductsFilterValidator");
+
+        await backend.BuildLayerAsync("Application");
+    }
+
     [Fact(DisplayName = "Generate a repository interface in a custom directory without an Application project")]
     public async Task SupportsCustomRepositoryDirectoriesWithoutApplication()
     {

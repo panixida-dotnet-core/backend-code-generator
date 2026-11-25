@@ -11,6 +11,7 @@ public sealed class Get{{ model.feature }}ListHandler(I{{ model.feature }}ReadRe
     {
         var items = await repository.GetPagedListAsync(
 {{ if model.child }}            query.ParentId,
+{{ end }}{{ if model.has_search_filter }}            query.Filter,
 {{ end }}            query.PaginationParameters,
             query.SortingParameters,
             cancellationToken);

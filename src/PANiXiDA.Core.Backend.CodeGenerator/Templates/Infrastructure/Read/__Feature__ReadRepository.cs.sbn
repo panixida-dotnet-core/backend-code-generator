@@ -1,7 +1,8 @@
-{{ child_has_reads = model.child && (model.has_details_read_model || model.has_list_item_read_model) }}{{ if child_has_reads }}using Microsoft.EntityFrameworkCore;
+{{ child_has_reads = model.child && (model.has_details_read_model || model.has_list_item_read_model) }}{{ if child_has_reads || model.has_search_filter }}using Microsoft.EntityFrameworkCore;
 
 {{ end }}using {{ model.module }}.Application.{{ model.feature }}.Abstractions;
-{{ if model.has_details_read_model }}using {{ model.module }}.Application.{{ model.feature }}.Read.GetDetails;
+{{ if model.has_search_filter }}using {{ model.module }}.Application.{{ model.feature }}.Common.Filters;
+{{ end }}{{ if model.has_details_read_model }}using {{ model.module }}.Application.{{ model.feature }}.Read.GetDetails;
 {{ end }}{{ if model.has_list_item_read_model }}using {{ model.module }}.Application.{{ model.feature }}.Read.GetList;
 {{ end }}using {{ model.module }}.Infrastructure.Persistence.Core;
 using {{ model.module }}.Infrastructure.Persistence.Features.{{ model.feature }}.Read.DbModels;
@@ -34,6 +35,7 @@ public sealed class {{ model.feature }}ReadRepository({{ model.module_name }}Rea
 {{ end }}{{ if model.has_list_item_read_model }}{{ if model.has_details_read_model }}
 {{ end }}    public {{ if model.child }}async {{ end }}Task<PaginationResult<{{ model.resource }}ListItemReadModel>{{ if model.child }}?{{ end }}> GetPagedListAsync(
 {{ if model.child }}        Guid parentId,
+{{ end }}{{ if model.has_search_filter }}        {{ model.feature }}Filter filter,
 {{ end }}        PaginationParameters paginationParameters,
         SortingParameters sortingParameters,
         CancellationToken cancellationToken)
@@ -43,13 +45,35 @@ public sealed class {{ model.feature }}ReadRepository({{ model.module_name }}Rea
             return null;
         }
 
+{{ end }}{{ if model.has_search_filter }}        var query = ApplyFilter(Query{{ if model.child }}.Where(item => item.ParentId == parentId){{ end }}, filter);
+
 {{ end }}        return {{ if model.child }}await {{ end }}GetPagedResultAsync<
             {{ model.resource }}ListItemReadModel,
             {{ model.resource }}ListItemReadModelMapper,
             {{ model.resource }}ListItemReadModelSorting>(
-                Query{{ if model.child }}.Where(item => item.ParentId == parentId){{ end }},
+                {{ if model.has_search_filter }}query{{ else }}Query{{ if model.child }}.Where(item => item.ParentId == parentId){{ end }}{{ end }},
                 paginationParameters,
                 sortingParameters,
                 cancellationToken);
+    }
+{{ end }}{{ if model.has_search_filter }}
+    private static IQueryable<{{ model.resource }}ReadDbModel> ApplyFilter(
+        IQueryable<{{ model.resource }}ReadDbModel> query,
+        {{ model.feature }}Filter filter)
+    {
+        if (string.IsNullOrWhiteSpace(filter.Search))
+        {
+            return query;
+        }
+
+        var search = filter.Search.Trim()
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("%", "\\%", StringComparison.Ordinal)
+            .Replace("_", "\\_", StringComparison.Ordinal);
+        var pattern = $"%{search}%";
+
+        return query.Where(item =>
+{{ for field in model.search_fields }}            EF.Functions.ILike(item.{{ field.name }}{{ if field.optional }} ?? string.Empty{{ end }}, pattern, "\\"){{ if !for.last }} ||
+{{ end }}{{ end }});
     }
 {{ end }}}

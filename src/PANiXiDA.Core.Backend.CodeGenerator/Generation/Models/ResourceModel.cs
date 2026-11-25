@@ -19,6 +19,14 @@ internal sealed record ResourceModel(
 
     public bool HasListItemReadModel { get; init; }
 
+    public bool HasFilter { get; init; }
+
+    public bool HasFilterValidator { get; init; }
+
+    public CodeField[] SearchFields => [.. ListFields.Where(item => item.Type is "string" or "string?")];
+
+    public bool HasSearchFilter => HasFilter && SearchFields.Length > 0;
+
     public CodeField[] CreateValidationFields => [.. CreateFields.Where(item => item.HasValidation)];
 
     public CodeField[] UpdateValidationFields => [.. UpdateFields.Where(item => item.HasValidation)];

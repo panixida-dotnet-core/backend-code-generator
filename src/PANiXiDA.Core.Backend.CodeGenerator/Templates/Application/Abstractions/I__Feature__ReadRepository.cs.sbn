@@ -1,4 +1,5 @@
-{{ if model.has_details_read_model }}using {{ model.module }}.Application.{{ model.feature }}.Read.GetDetails;
+{{ if model.has_search_filter }}using {{ model.module }}.Application.{{ model.feature }}.Common.Filters;
+{{ end }}{{ if model.has_details_read_model }}using {{ model.module }}.Application.{{ model.feature }}.Read.GetDetails;
 {{ end }}{{ if model.has_list_item_read_model }}using {{ model.module }}.Application.{{ model.feature }}.Read.GetList;
 {{ end }}{{ if model.has_details_read_model || model.has_list_item_read_model }}
 {{ end }}namespace {{ model.module }}.Application.{{ model.feature }}.Abstractions;
@@ -12,6 +13,7 @@ public interface I{{ model.feature }}ReadRepository : IReadRepository<Guid>
 {{ end }}{{ if model.has_list_item_read_model }}{{ if model.has_details_read_model }}
 {{ end }}    Task<PaginationResult<{{ model.resource }}ListItemReadModel>{{ if model.child }}?{{ end }}> GetPagedListAsync(
 {{ if model.child }}        Guid parentId,
+{{ end }}{{ if model.has_search_filter }}        {{ model.feature }}Filter filter,
 {{ end }}        PaginationParameters paginationParameters,
         SortingParameters sortingParameters,
         CancellationToken cancellationToken);
