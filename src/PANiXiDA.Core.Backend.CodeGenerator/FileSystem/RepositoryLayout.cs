@@ -30,7 +30,6 @@ internal sealed record RepositoryLayout(string Root, string ConfigurationDirecto
 
     private static void EnsureNoLinks(string fullPath, string relativePath)
     {
-        // Paths supplied in configuration must stay inside the repository on disk as well.
         var remaining = relativePath;
         var currentPath = fullPath;
         while (remaining.Length > 0)
