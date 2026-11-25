@@ -26,6 +26,8 @@ internal sealed class ScratchBackend : IDisposable
 
     internal string Root => _directory.FullName;
 
+    public void Dispose() => _directory.Delete(recursive: true);
+
     internal static JsonObject Job(params string[] artifacts)
     {
         var source = File.ReadAllText(Path.Combine(s_fixture, Configuration));
@@ -78,6 +80,4 @@ internal sealed class ScratchBackend : IDisposable
         var buildLog = await output + await errors;
         process.ExitCode.ShouldBe(0, buildLog);
     }
-
-    public void Dispose() => _directory.Delete(recursive: true);
 }

@@ -10,8 +10,6 @@ internal sealed class PartialTemplateLoader(
     RepositoryLayout repository,
     IReadOnlyDictionary<string, string>? overrides) : ITemplateLoader
 {
-    internal static bool IsBundled(string name) => EmbeddedTemplates.Contains($"Partials/{name}");
-
     public string GetPath(TemplateContext context, SourceSpan callerSpan, string templateName)
     {
         if (!IsBundled(templateName))
@@ -37,4 +35,6 @@ internal sealed class PartialTemplateLoader(
         using var reader = new StreamReader(EmbeddedTemplates.Open(templatePath));
         return await reader.ReadToEndAsync(context.CancellationToken);
     }
+
+    internal static bool IsBundled(string name) => EmbeddedTemplates.Contains($"Partials/{name}");
 }

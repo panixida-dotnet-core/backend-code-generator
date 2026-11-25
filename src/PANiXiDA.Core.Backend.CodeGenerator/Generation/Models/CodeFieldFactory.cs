@@ -69,6 +69,56 @@ internal static class CodeFieldFactory
             $"'{propertyName}' requires a scalar or a value object with a matching Create factory.");
     }
 
+    internal static CodeField[] BindParameters(
+        MethodInfo method, IReadOnlyList<CodeField> fields, NullabilityInfoContext nullability, Type? leadingId = null)
+    {
+        var parameters = method.GetParameters();
+        if (leadingId is not null)
+        {
+            if (parameters.Length == 0 || parameters[0].ParameterType != leadingId)
+            {
+                throw new InvalidOperationException($"'{method.Name}' must take '{leadingId.Name}' first.");
+            }
+
+            parameters = parameters[1..];
+        }
+
+        var bound = new List<CodeField>(parameters.Length);
+        foreach (var parameter in parameters)
+        {
+            var field = fields.SingleOrDefault(
+                item => string.Equals(item.Name, parameter.Name, StringComparison.OrdinalIgnoreCase));
+            var underlying = Nullable.GetUnderlyingType(parameter.ParameterType) ?? parameter.ParameterType;
+            var optional = IsOptional(parameter.ParameterType, nullability.Create(parameter));
+            if (field is null
+                || !MatchesParameter(field, underlying, optional)
+                || bound.Contains(field))
+            {
+                var parameterName = $"{method.DeclaringType!.Name}.{method.Name}({parameter.Name})";
+                throw new InvalidOperationException(
+                    $"'{parameterName}' must match a writable domain property and its input type.");
+            }
+
+            bound.Add(field);
+        }
+
+        return [.. bound];
+    }
+
+    internal static CodeField[] SelectProjection(
+        IReadOnlyList<string>? names, IReadOnlyList<CodeField> fields, string setting)
+    {
+        if (names is null || !names.Contains(DomainTypeInspector.IdPropertyName)
+            || names.Distinct(StringComparer.Ordinal).Count() != names.Count)
+        {
+            throw new InvalidOperationException(
+                $"'{setting}' must contain {DomainTypeInspector.IdPropertyName} and distinct property names.");
+        }
+
+        return [.. names.Select(name => fields.SingleOrDefault(field => field.Name == name)
+            ?? throw new InvalidOperationException($"Unknown property '{name}' in '{setting}'."))];
+    }
+
     private static CodeField? DescribeSingleValue(string name, Type type, bool optional)
     {
         var value = type.GetProperty(DomainTypeInspector.ValuePropertyName) ?? type.GetProperty("Name");
@@ -156,42 +206,6 @@ internal static class CodeFieldFactory
         return [.. components];
     }
 
-    internal static CodeField[] BindParameters(
-        MethodInfo method, IReadOnlyList<CodeField> fields, NullabilityInfoContext nullability, Type? leadingId = null)
-    {
-        var parameters = method.GetParameters();
-        if (leadingId is not null)
-        {
-            if (parameters.Length == 0 || parameters[0].ParameterType != leadingId)
-            {
-                throw new InvalidOperationException($"'{method.Name}' must take '{leadingId.Name}' first.");
-            }
-
-            parameters = parameters[1..];
-        }
-
-        var bound = new List<CodeField>(parameters.Length);
-        foreach (var parameter in parameters)
-        {
-            var field = fields.SingleOrDefault(
-                item => string.Equals(item.Name, parameter.Name, StringComparison.OrdinalIgnoreCase));
-            var underlying = Nullable.GetUnderlyingType(parameter.ParameterType) ?? parameter.ParameterType;
-            var optional = IsOptional(parameter.ParameterType, nullability.Create(parameter));
-            if (field is null
-                || !MatchesParameter(field, underlying, optional)
-                || bound.Contains(field))
-            {
-                var parameterName = $"{method.DeclaringType!.Name}.{method.Name}({parameter.Name})";
-                throw new InvalidOperationException(
-                    $"'{parameterName}' must match a writable domain property and its input type.");
-            }
-
-            bound.Add(field);
-        }
-
-        return [.. bound];
-    }
-
     private static bool MatchesParameter(CodeField field, Type parameterType, bool optional)
     {
         if (field.Composite)
@@ -201,20 +215,6 @@ internal static class CodeFieldFactory
 
         return s_scalarNames.TryGetValue(parameterType, out var scalar)
             && field.Type == (optional ? scalar + "?" : scalar);
-    }
-
-    internal static CodeField[] SelectProjection(
-        IReadOnlyList<string>? names, IReadOnlyList<CodeField> fields, string setting)
-    {
-        if (names is null || !names.Contains(DomainTypeInspector.IdPropertyName)
-            || names.Distinct(StringComparer.Ordinal).Count() != names.Count)
-        {
-            throw new InvalidOperationException(
-                $"'{setting}' must contain {DomainTypeInspector.IdPropertyName} and distinct property names.");
-        }
-
-        return [.. names.Select(name => fields.SingleOrDefault(field => field.Name == name)
-            ?? throw new InvalidOperationException($"Unknown property '{name}' in '{setting}'."))];
     }
 
     private static bool IsOptional(Type type, NullabilityInfo nullability) =>

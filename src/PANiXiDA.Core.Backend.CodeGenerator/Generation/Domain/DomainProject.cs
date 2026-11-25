@@ -155,16 +155,16 @@ internal sealed record DomainProject(string ProjectFile, string Module, string M
     {
         private readonly AssemblyDependencyResolver _resolver = new(targetPath);
 
-        protected override Assembly? Load(AssemblyName assemblyName)
-        {
-            var dependency = _resolver.ResolveAssemblyToPath(assemblyName);
-            return dependency is null ? null : LoadFile(dependency);
-        }
-
         internal Assembly LoadFile(string path)
         {
             using var file = File.OpenRead(path);
             return LoadFromStream(file);
+        }
+
+        protected override Assembly? Load(AssemblyName assemblyName)
+        {
+            var dependency = _resolver.ResolveAssemblyToPath(assemblyName);
+            return dependency is null ? null : LoadFile(dependency);
         }
     }
 }

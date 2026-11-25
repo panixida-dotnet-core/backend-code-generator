@@ -30,6 +30,14 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
 
     internal List<OutputChange> Changes { get; } = [];
 
+    public void Dispose()
+    {
+        foreach (var domain in _domains.Values)
+        {
+            AssemblyLoadContext.GetLoadContext(domain)!.Unload();
+        }
+    }
+
     internal async Task AddJobAsync(JobSettings job, CancellationToken cancellationToken)
     {
         ValidateJob(job);
@@ -47,12 +55,37 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
         }
     }
 
-    public void Dispose()
+    internal static Dictionary<string, TemplateArtifact> LoadCatalog(IEnumerable<string> paths)
     {
-        foreach (var domain in _domains.Values)
+        var catalog = new Dictionary<string, TemplateArtifact>(StringComparer.Ordinal);
+        foreach (var path in paths.Where(path => path.EndsWith(".cs.sbn", StringComparison.Ordinal)))
         {
-            AssemblyLoadContext.GetLoadContext(domain)!.Unload();
+            var separator = path.IndexOf('/');
+            if (separator < 0
+                || path[..separator] is not (ModuleLayer.Domain or ModuleLayer.Application
+                    or ModuleLayer.Infrastructure or ModuleLayer.Presentation))
+            {
+                continue;
+            }
+
+            var outputFile = path[(separator + 1)..^".sbn".Length];
+            var name = Path.GetFileNameWithoutExtension(outputFile)
+                .Replace(ResourcePlaceholder, string.Empty, StringComparison.Ordinal)
+                .Replace(FeaturePlaceholder, string.Empty, StringComparison.Ordinal);
+            var artifact = new TemplateArtifact(name, path[..separator], outputFile, path, Child: false);
+            if (!catalog.TryAdd(name, artifact))
+            {
+                throw new InvalidOperationException($"Duplicate artifact name '{name}' in the bundled templates.");
+            }
+
+            if (name is not ("IRepository" or "Repository"))
+            {
+                var child = artifact with { Name = ChildArtifactPrefix + name, Child = true };
+                catalog.Add(child.Name, child);
+            }
         }
+
+        return catalog;
     }
 
     private async Task<Assembly> GetDomainAsync(DomainProject project, CancellationToken cancellationToken)
@@ -291,37 +324,4 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
 
     private static string GetRelativePath(RepositoryLayout repository, string path) =>
         Path.GetRelativePath(repository.Root, path);
-
-    internal static Dictionary<string, TemplateArtifact> LoadCatalog(IEnumerable<string> paths)
-    {
-        var catalog = new Dictionary<string, TemplateArtifact>(StringComparer.Ordinal);
-        foreach (var path in paths.Where(path => path.EndsWith(".cs.sbn", StringComparison.Ordinal)))
-        {
-            var separator = path.IndexOf('/');
-            if (separator < 0
-                || path[..separator] is not (ModuleLayer.Domain or ModuleLayer.Application
-                    or ModuleLayer.Infrastructure or ModuleLayer.Presentation))
-            {
-                continue;
-            }
-
-            var outputFile = path[(separator + 1)..^".sbn".Length];
-            var name = Path.GetFileNameWithoutExtension(outputFile)
-                .Replace(ResourcePlaceholder, string.Empty, StringComparison.Ordinal)
-                .Replace(FeaturePlaceholder, string.Empty, StringComparison.Ordinal);
-            var artifact = new TemplateArtifact(name, path[..separator], outputFile, path, Child: false);
-            if (!catalog.TryAdd(name, artifact))
-            {
-                throw new InvalidOperationException($"Duplicate artifact name '{name}' in the bundled templates.");
-            }
-
-            if (name is not ("IRepository" or "Repository"))
-            {
-                var child = artifact with { Name = ChildArtifactPrefix + name, Child = true };
-                catalog.Add(child.Name, child);
-            }
-        }
-
-        return catalog;
-    }
 }
