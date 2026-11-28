@@ -10,16 +10,16 @@ public sealed class Get{{ model.resource }}DetailsHandler(
         Get{{ model.resource }}DetailsQuery query,
         CancellationToken cancellationToken)
     {
-        var entity = await {{ model.read_repository_parameter }}.{{ if model.child }}Get{{ model.child.collection }}ItemByIdAsync{{ else }}GetByIdAsync{{ end }}(
+        var {{ model.details_variable }} = await {{ model.read_repository_parameter }}.{{ if model.child }}Get{{ model.child.collection }}ItemByIdAsync{{ else }}GetByIdAsync{{ end }}(
 {{ if model.child }}            parentId: query.ParentId,
 {{ end }}            id: query.Id,
             cancellationToken: cancellationToken);
-        if (entity is null)
+        if ({{ model.details_variable }} is null)
         {
             return Result.Failure<{{ model.resource }}DetailsReadModel>(
                 Error.NotFound($"{{ model.resource }} with id '{query.Id}' was not found."));
         }
 
-        return Result.Success(entity);
+        return Result.Success({{ model.details_variable }});
     }
 }

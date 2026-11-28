@@ -15,7 +15,7 @@ public sealed class Delete{{ model.resource }}Handler(I{{ model.aggregate_featur
    with_id = true
    parent_id_type = model.child.parent_id
    id_type = model.id
-   include "LoadParent.sbn" }}        return parent.{{ model.child.delete_method }}(idResult.Value);
+   include "LoadParent.sbn" }}        return {{ model.aggregate_variable }}.{{ model.child.delete_method }}(idResult.Value);
 {{ else }}        var idResult = {{ model.id }}.Create(command.Id);
 
         if (idResult.IsFailure)
@@ -23,17 +23,17 @@ public sealed class Delete{{ model.resource }}Handler(I{{ model.aggregate_featur
             return Result.Failure(idResult.Errors);
         }
 
-        var entity = await {{ model.write_repository_parameter }}.GetByIdAsync(
+        var {{ model.aggregate_variable }} = await {{ model.write_repository_parameter }}.GetByIdAsync(
             idResult.Value,
             cancellationToken);
 
-        if (entity is null)
+        if ({{ model.aggregate_variable }} is null)
         {
             return Result.Failure(
                 Error.NotFound($"{{ model.resource }} with id '{command.Id}' was not found."));
         }
 
-        {{ model.write_repository_parameter }}.Delete(entity);
+        {{ model.write_repository_parameter }}.Delete({{ model.aggregate_variable }});
 
         return Result.Success();
 {{ end }}    }

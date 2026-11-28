@@ -1,3 +1,5 @@
+using PANiXiDA.Core.Backend.CodeGenerator.Generation.Domain;
+
 namespace PANiXiDA.Core.Backend.CodeGenerator.Generation.Models;
 
 internal sealed record ResourceModel(
@@ -15,6 +17,11 @@ internal sealed record ResourceModel(
     IReadOnlyList<CodeField> ListFields,
     ChildModel? Child = null)
 {
+    private static readonly string[] s_writeLocals =
+        ["command", "cancellationToken", "idResult", "parentIdResult", "validation", "updateResult", "item"];
+
+    private static readonly string[] s_readLocals = ["query", "cancellationToken"];
+
     public string AggregateFeature => Child?.ParentFeature ?? Feature;
 
     public string AggregateDomain => Child?.ParentDomain ?? Domain;
@@ -28,6 +35,13 @@ internal sealed record ResourceModel(
 
     public string WriteRepositoryParameter =>
         char.ToLowerInvariant(AggregateFeature[0]) + AggregateFeature[1..] + "Repository";
+
+    public string AggregateVariable => GetVariable(AggregateResource, "Aggregate", ReservedWriteNames);
+    public string CreateResultVariable => GetVariable(
+        Resource + (Child is null ? "Result" : "IdResult"), "Created", ReservedWriteNames.Append(AggregateVariable));
+
+    public string DetailsVariable => GetVariable(Resource, "ReadModel", s_readLocals);
+    public string ListVariable => GetVariable(Feature, "Page", s_readLocals);
 
     public bool RequiresWriteAggregateAlias =>
         WriteAggregateNaming.RequiresAggregateAlias(Module, AggregateFeature, AggregateResource)
@@ -63,4 +77,23 @@ internal sealed record ResourceModel(
     public bool HasCompoundDetails => DetailsFields.Any(item => item.Composite);
 
     public bool HasCompoundList => ListFields.Any(item => item.Composite);
+
+    private IEnumerable<string> ReservedWriteNames =>
+        s_writeLocals
+            .Concat(CreateFields.Concat(UpdateFields)
+                .Where(item => item.BindsDomainValue)
+                .SelectMany(item => new[] { item.LocalName + "Input", item.LocalName + "Result" }))
+            .Concat(CreateHandlerTypes!.DomainTypes.Values)
+            .Concat(UpdateHandlerTypes!.DomainTypes.Values);
+
+    private static string GetVariable(string domainName, string suffix, IEnumerable<string> reserved)
+    {
+        var name = char.ToLowerInvariant(domainName[0]) + domainName[1..];
+        while (reserved.Contains(name, StringComparer.Ordinal))
+        {
+            name += suffix;
+        }
+
+        return CSharpIdentifier.Escape(name, isAsync: true);
+    }
 }

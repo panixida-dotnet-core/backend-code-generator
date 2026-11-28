@@ -15,7 +15,10 @@ public sealed class GenerationTests
         files.Select(file => file.Path).Distinct().Count().ShouldBe(files.Count);
         files.ShouldAllBe(file => file.Action == GeneratedFileAction.Created);
         var code = files.Select(file => backend.Read(file.Path)).ToArray();
-        code.ShouldContain(source => source.Contains("DomainAggregate.Create(", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("var productResult = DomainAggregate.Create(", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("var product = await productsRepository.GetByIdAsync(", StringComparison.Ordinal)
+            && source.Contains("productsRepository.Update(product);", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("productsRepository.Delete(product);", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("var nameResult =", StringComparison.Ordinal)
             && source.Contains("ProductName.Create(", StringComparison.Ordinal)
             && source.Contains("ProductKind.Create(", StringComparison.Ordinal)
@@ -56,9 +59,13 @@ public sealed class GenerationTests
             childSource.ShouldContain("Error.Validation(\"Price is required.\")");
             childSource.ShouldNotContain("if (priceResult.IsFailure)");
         }
-        code.ShouldContain(source => source.Contains("parent.AddVariant(", StringComparison.Ordinal));
-        code.ShouldContain(source => source.Contains("parent.UpdateVariant(", StringComparison.Ordinal));
-        code.ShouldContain(source => source.Contains("parent.RemoveVariant(", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("var productVariantIdResult = product.AddVariant(", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("return product.UpdateVariant(", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("return product.RemoveVariant(", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("var product = await productsReadRepository.GetByIdAsync(", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("var products = await productsReadRepository.GetPagedListAsync(", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("var productVariant = await productsReadRepository.GetVariantsItemByIdAsync(", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("var productVariants = await productsReadRepository.GetVariantsPageAsync(", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("ProductVariantDetailsReadModelMapper.ProjectTo(query)", StringComparison.Ordinal)
             && source.Contains(".FirstOrDefaultAsync(item => item.Id == id, cancellationToken)", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("GetVariantsPageAsync(", StringComparison.Ordinal)

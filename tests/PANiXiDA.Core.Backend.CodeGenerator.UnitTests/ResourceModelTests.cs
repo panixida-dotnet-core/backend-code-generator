@@ -107,6 +107,25 @@ public sealed class ResourceModelTests
         child.UpdateFields.ShouldBeEmpty();
     }
 
+    [Fact(DisplayName = "Use application variable names that do not shadow parameters or value object results")]
+    public void AvoidsHandlerVariableCollisions()
+    {
+        var target = Target(nameof(ValidRoot));
+        var model = ResourceModelFactory.Create(typeof(ValidRoot).Assembly, target, Settings(target)) with
+        {
+            Resource = "Command",
+            Feature = "Query",
+            CreateFields = [new CodeField("Command", "string", false, null, null, false) { BindsDomainValue = true }]
+        };
+        var readModel = model with { Resource = "CancellationToken" };
+
+        model.AggregateVariable.ShouldBe("commandAggregate");
+        model.CreateResultVariable.ShouldBe("commandResultCreated");
+        model.ListVariable.ShouldBe("queryPage");
+        readModel.DetailsVariable.ShouldBe("cancellationTokenReadModel");
+        (readModel with { Resource = "Await" }).DetailsVariable.ShouldBe("@await");
+    }
+
     private static ResourceTarget Target(string type) => new(s_project, "Models", type);
 
     private static ResourceSettings Settings(ResourceTarget target) => new(target.Aggregate, "roots", ["Id"], ["Id"], null);

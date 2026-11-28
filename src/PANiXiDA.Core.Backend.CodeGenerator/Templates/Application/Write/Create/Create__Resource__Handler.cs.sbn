@@ -12,6 +12,7 @@ public sealed class Create{{ model.resource }}Handler(I{{ model.aggregate_featur
     {
         {{~
             fields = model.create_fields
+            result_name = model.create_result_variable
             if model.child
                 failure = "Result.Failure<Guid>"
                 with_id = false
@@ -19,12 +20,10 @@ public sealed class Create{{ model.resource }}Handler(I{{ model.aggregate_featur
                 include "LoadParent.sbn"
                 fail_start = "Result.Failure<Guid>("
                 fail_end = ")"
-                result_name = "created"
-                factory = "parent." + model.child.create_method
+                factory = model.aggregate_variable + "." + model.child.create_method
             else
                 fail_start = "Task.FromResult(Result.Failure<Guid>("
                 fail_end = "))"
-                result_name = "entityResult"
                 factory = handler.aggregate_type + ".Create"
             end
             include "BindDomainValues.sbn"
@@ -36,18 +35,18 @@ public sealed class Create{{ model.resource }}Handler(I{{ model.aggregate_featur
         );
 
         {{~ if model.child ~}}
-        return created.IsSuccess
-            ? Result.Success(created.Value.Value)
-            : Result.Failure<Guid>(created.Errors);
+        return {{ result_name }}.IsSuccess
+            ? Result.Success({{ result_name }}.Value.Value)
+            : Result.Failure<Guid>({{ result_name }}.Errors);
         {{~ else ~}}
-        if (entityResult.IsFailure)
+        if ({{ result_name }}.IsFailure)
         {
-            return Task.FromResult(Result.Failure<Guid>(entityResult.Errors));
+            return Task.FromResult(Result.Failure<Guid>({{ result_name }}.Errors));
         }
 
-        {{ model.write_repository_parameter }}.Add(entityResult.Value);
+        {{ model.write_repository_parameter }}.Add({{ result_name }}.Value);
 
-        return Task.FromResult(Result.Success(entityResult.Value.Id.Value));
+        return Task.FromResult(Result.Success({{ result_name }}.Value.Id.Value));
         {{~ end ~}}
     }
 }

@@ -18,7 +18,7 @@ public sealed class Update{{ model.resource }}Handler(I{{ model.aggregate_featur
    fields = model.update_fields
    fail_start = "Result.Failure("
    fail_end = ")"
-   include "BindDomainValues.sbn" }}        return parent.{{ model.child.update_method }}({{ if model.update_fields.size > 0 }}
+   include "BindDomainValues.sbn" }}        return {{ model.aggregate_variable }}.{{ model.child.update_method }}({{ if model.update_fields.size > 0 }}
             {{ csharp_argument model.child.update_id_parameter async_handler }}: idResult.Value,
 {{ for field in model.update_fields }}            {{ csharp_argument field.parameter_name async_handler }}: {{ field.domain_argument }}{{ if !for.last }},
 {{ end }}{{ end }}{{ else }}idResult.Value{{ end }});
@@ -29,11 +29,11 @@ public sealed class Update{{ model.resource }}Handler(I{{ model.aggregate_featur
             return Result.Failure(idResult.Errors);
         }
 
-        var entity = await {{ model.write_repository_parameter }}.GetByIdAsync(
+        var {{ model.aggregate_variable }} = await {{ model.write_repository_parameter }}.GetByIdAsync(
             idResult.Value,
             cancellationToken);
 
-        if (entity is null)
+        if ({{ model.aggregate_variable }} is null)
         {
             return Result.Failure(
                 Error.NotFound($"{{ model.resource }} with id '{command.Id}' was not found.")
@@ -43,7 +43,7 @@ public sealed class Update{{ model.resource }}Handler(I{{ model.aggregate_featur
 {{ fields = model.update_fields
    fail_start = "Result.Failure("
    fail_end = ")"
-   include "BindDomainValues.sbn" }}        var updateResult = entity.Update({{ if model.update_fields.size > 0 }}
+   include "BindDomainValues.sbn" }}        var updateResult = {{ model.aggregate_variable }}.Update({{ if model.update_fields.size > 0 }}
 {{ for field in model.update_fields }}            {{ csharp_argument field.parameter_name async_handler }}: {{ field.domain_argument }}{{ if !for.last }},
 {{ end }}{{ end }}{{ end }});
 
@@ -52,7 +52,7 @@ public sealed class Update{{ model.resource }}Handler(I{{ model.aggregate_featur
             return updateResult;
         }
 
-        {{ model.write_repository_parameter }}.Update(entity);
+        {{ model.write_repository_parameter }}.Update({{ model.aggregate_variable }});
 
         return Result.Success();
 {{ end }}    }

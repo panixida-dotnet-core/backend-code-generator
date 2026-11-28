@@ -15,13 +15,13 @@ public sealed class Get{{ model.feature }}ListHandler(I{{ model.read_feature }}R
                 Error.NotFound($"{{ model.child.parent_resource }} with id '{query.ParentId}' was not found."));
         }
 
-{{ end }}        var items = await {{ model.read_repository_parameter }}.{{ if model.child }}Get{{ model.child.collection }}PageAsync{{ else }}GetPagedListAsync{{ end }}(
+{{ end }}        var {{ model.list_variable }} = await {{ model.read_repository_parameter }}.{{ if model.child }}Get{{ model.child.collection }}PageAsync{{ else }}GetPagedListAsync{{ end }}(
 {{ if model.child }}            parentId: query.ParentId,
 {{ end }}{{ if model.has_search_filter }}            filter: query.Filter,
 {{ end }}            paginationParameters: query.PaginationParameters,
             sortingParameters: query.SortingParameters,
             cancellationToken: cancellationToken);
 
-        return Result.Success(items);
+        return Result.Success({{ model.list_variable }});
     }
 }
