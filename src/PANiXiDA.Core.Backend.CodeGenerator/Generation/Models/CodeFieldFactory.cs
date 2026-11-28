@@ -129,7 +129,7 @@ internal static class CodeFieldFactory
 
     private static CodeField? DescribeSingleValue(string name, Type type, bool optional)
     {
-        var value = type.GetProperty(DomainTypeInspector.ValuePropertyName) ?? type.GetProperty("Name");
+        var value = GetValueProperty(type);
         if (!type.IsPublic
             || type.IsGenericType
             || value?.GetMethod is not { IsPublic: true, IsStatic: false }
@@ -209,7 +209,7 @@ internal static class CodeFieldFactory
     {
         if (field.Components is not { } components)
         {
-            var value = type.GetProperty(DomainTypeInspector.ValuePropertyName) ?? type.GetProperty("Name")!;
+            var value = GetValueProperty(type)!;
             var factory = DomainTypeInspector.FindFactory(type, [ToNullableType(value.PropertyType)], allowNullableResult: true)!;
             if (nullability.Create(factory.GetParameters()[0]).WriteState == NullabilityState.NotNull)
             {
@@ -255,6 +255,9 @@ internal static class CodeFieldFactory
             && (!IsOptional(property.PropertyType, nullability.Create(property))
                 || nullability.Create(parameter).WriteState != NullabilityState.NotNull);
     }
+
+    private static PropertyInfo? GetValueProperty(Type type) =>
+        type.GetProperty(DomainTypeInspector.ValuePropertyName) ?? type.GetProperty("Name");
 
     private static Type ToNullableType(Type type) =>
         type.IsValueType && Nullable.GetUnderlyingType(type) is null ? typeof(Nullable<>).MakeGenericType(type) : type;
