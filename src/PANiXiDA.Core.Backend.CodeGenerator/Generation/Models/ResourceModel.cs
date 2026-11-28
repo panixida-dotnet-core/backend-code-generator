@@ -89,11 +89,12 @@ internal sealed record ResourceModel(
     private static string GetVariable(string domainName, string suffix, IEnumerable<string> reserved)
     {
         var name = char.ToLowerInvariant(domainName[0]) + domainName[1..];
-        while (reserved.Contains(name, StringComparer.Ordinal))
+        var candidate = name;
+        for (var index = 1; reserved.Contains(candidate, StringComparer.Ordinal); index++)
         {
-            name += suffix;
+            candidate = $"{name}{suffix}{index}";
         }
 
-        return CSharpIdentifier.Escape(name, isAsync: true);
+        return CSharpIdentifier.Escape(candidate, isAsync: true);
     }
 }
