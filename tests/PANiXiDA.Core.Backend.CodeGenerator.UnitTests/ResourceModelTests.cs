@@ -120,9 +120,11 @@ public sealed class ResourceModelTests
         var readModel = model with { Resource = "CancellationToken" };
 
         model.AggregateVariable.ShouldBe("commandAggregate1");
+        (model with { Resource = "QueryRepository" }).AggregateVariable.ShouldBe("queryRepositoryAggregate1");
         model.CreateResultVariable.ShouldBe("commandResultCreated1");
         model.ListVariable.ShouldBe("queryPage1");
         readModel.DetailsVariable.ShouldBe("cancellationTokenReadModel1");
+        (readModel with { Resource = "QueryReadRepository" }).DetailsVariable.ShouldBe("queryReadRepositoryReadModel1");
         (readModel with { Resource = "Await" }).DetailsVariable.ShouldBe("@await");
     }
 

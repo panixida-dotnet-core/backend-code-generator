@@ -40,8 +40,8 @@ internal sealed record ResourceModel(
     public string CreateResultVariable => GetVariable(
         Resource + (Child is null ? "Result" : "IdResult"), "Created", ReservedWriteNames.Append(AggregateVariable));
 
-    public string DetailsVariable => GetVariable(Resource, "ReadModel", s_readLocals);
-    public string ListVariable => GetVariable(Feature, "Page", s_readLocals);
+    public string DetailsVariable => GetVariable(Resource, "ReadModel", s_readLocals.Append(ReadRepositoryParameter));
+    public string ListVariable => GetVariable(Feature, "Page", s_readLocals.Append(ReadRepositoryParameter));
 
     public bool RequiresWriteAggregateAlias =>
         WriteAggregateNaming.RequiresAggregateAlias(Module, AggregateFeature, AggregateResource)
@@ -80,6 +80,7 @@ internal sealed record ResourceModel(
 
     private IEnumerable<string> ReservedWriteNames =>
         s_writeLocals
+            .Append(WriteRepositoryParameter)
             .Concat(CreateFields.Concat(UpdateFields)
                 .Where(item => item.BindsDomainValue)
                 .SelectMany(item => new[] { item.LocalName + "Input", item.LocalName + "Result" }))
