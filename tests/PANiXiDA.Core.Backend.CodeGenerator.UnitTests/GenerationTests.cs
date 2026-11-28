@@ -84,6 +84,7 @@ public sealed class GenerationTests
             StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("routeName: new GetProductDetailsEndpoint().Name", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains(".SetValidator(new ProductVariantListItemReadModelSortingValidator())", StringComparison.Ordinal));
+        code.ShouldNotContain(source => source.Contains("RuleForEach(query => query.SortingParameters.Fields)", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("HasColumnType(\"jsonb\")", StringComparison.Ordinal));
         Directory.EnumerateFiles(backend.Root, "*.sbn", SearchOption.AllDirectories).ShouldBeEmpty();
 
