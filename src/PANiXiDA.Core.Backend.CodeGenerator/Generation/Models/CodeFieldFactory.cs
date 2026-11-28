@@ -72,17 +72,7 @@ internal static class CodeFieldFactory
     internal static CodeField[] BindParameters(
         MethodInfo method, IReadOnlyList<CodeField> fields, NullabilityInfoContext nullability, Type? leadingId = null)
     {
-        var parameters = method.GetParameters();
-        if (leadingId is not null)
-        {
-            if (parameters.Length == 0 || parameters[0].ParameterType != leadingId)
-            {
-                throw new InvalidOperationException($"'{method.Name}' must take '{leadingId.Name}' first.");
-            }
-
-            parameters = parameters[1..];
-        }
-
+        var parameters = GetWritableParameters(method, leadingId);
         var bound = new List<CodeField>(parameters.Length);
         foreach (var parameter in parameters)
         {
@@ -125,6 +115,22 @@ internal static class CodeFieldFactory
 
         return [.. names.Select(name => fields.SingleOrDefault(field => field.Name == name)
             ?? throw new InvalidOperationException($"Unknown property '{name}' in '{setting}'."))];
+    }
+
+    private static ParameterInfo[] GetWritableParameters(MethodInfo method, Type? leadingId)
+    {
+        var parameters = method.GetParameters();
+        if (leadingId is null)
+        {
+            return parameters;
+        }
+
+        if (parameters.Length == 0 || parameters[0].ParameterType != leadingId)
+        {
+            throw new InvalidOperationException($"'{method.Name}' must take '{leadingId.Name}' first.");
+        }
+
+        return parameters[1..];
     }
 
     private static CodeField? DescribeSingleValue(string name, Type type, bool optional)
