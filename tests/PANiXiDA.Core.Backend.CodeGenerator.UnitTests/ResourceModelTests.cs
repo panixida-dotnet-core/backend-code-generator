@@ -21,7 +21,7 @@ public sealed class ResourceModelTests
     }
 
     [Theory(DisplayName = "Use a valid C# resource name as the details mapper parameter")]
-    [InlineData("ProductVariant", "productVariant")]
+    [InlineData("ProductVariant", "productVariantReadModel")]
     [InlineData("Event", "eventReadModel")]
     public void NamesDetailsMapperParameter(string resource, string expectedName)
     {
