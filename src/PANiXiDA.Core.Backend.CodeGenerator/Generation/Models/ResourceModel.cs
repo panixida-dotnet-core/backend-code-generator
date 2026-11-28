@@ -15,6 +15,17 @@ internal sealed record ResourceModel(
     IReadOnlyList<CodeField> ListFields,
     ChildModel? Child = null)
 {
+    private static readonly HashSet<string> s_reservedKeywords =
+    [
+        "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class", "const",
+        "continue", "decimal", "default", "delegate", "do", "double", "else", "enum", "event", "explicit", "extern",
+        "false", "finally", "fixed", "float", "for", "foreach", "goto", "if", "implicit", "in", "int", "interface",
+        "internal", "is", "lock", "long", "namespace", "new", "null", "object", "operator", "out", "override",
+        "params", "private", "protected", "public", "readonly", "ref", "return", "sbyte", "sealed", "short", "sizeof",
+        "stackalloc", "static", "string", "struct", "switch", "this", "throw", "true", "try", "typeof", "uint",
+        "ulong", "unchecked", "unsafe", "ushort", "using", "virtual", "void", "volatile", "while"
+    ];
+
     public string AggregateFeature => Child?.ParentFeature ?? Feature;
 
     public string AggregateDomain => Child?.ParentDomain ?? Domain;
@@ -22,6 +33,15 @@ internal sealed record ResourceModel(
     public string AggregateResource => Child?.ParentResource ?? Resource;
 
     public string ReadFeature => AggregateFeature;
+
+    public string DetailsParameter
+    {
+        get
+        {
+            var name = char.ToLowerInvariant(Resource[0]) + Resource[1..];
+            return s_reservedKeywords.Contains(name) ? name + "ReadModel" : name;
+        }
+    }
 
     public string WriteRepositoryParameter =>
         char.ToLowerInvariant(AggregateFeature[0]) + AggregateFeature[1..] + "Repository";

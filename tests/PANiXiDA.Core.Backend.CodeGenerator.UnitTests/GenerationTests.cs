@@ -77,6 +77,11 @@ public sealed class GenerationTests
             StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("partial GetProductVariantDetailsQuery ToQuery(Guid parentId, Guid id);",
             StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("ProductDetailsReadModel product);", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("ProductVariantDetailsReadModel productVariant);", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("ProductDetailsMapper.ToResponse(product: readModel)", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("ProductVariantDetailsMapper.ToResponse(productVariant: readModel)",
+            StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("routeName: new GetProductDetailsEndpoint().Name", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains(".SetValidator(new ProductVariantListItemReadModelSortingValidator())", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("HasColumnType(\"jsonb\")", StringComparison.Ordinal));

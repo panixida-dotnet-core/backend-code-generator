@@ -20,6 +20,20 @@ public sealed class ResourceModelTests
         model.Fields.Select(field => field.Name).ShouldBe([nameof(ValidRoot.Count)]);
     }
 
+    [Theory(DisplayName = "Use a valid C# resource name as the details mapper parameter")]
+    [InlineData("ProductVariant", "productVariant")]
+    [InlineData("Event", "eventReadModel")]
+    public void NamesDetailsMapperParameter(string resource, string expectedName)
+    {
+        var target = Target(nameof(ValidRoot));
+        var model = ResourceModelFactory.Create(typeof(ValidRoot).Assembly, target, Settings(target)) with
+        {
+            Resource = resource
+        };
+
+        model.DetailsParameter.ShouldBe(expectedName);
+    }
+
     [Theory(DisplayName = "Reject unsupported aggregate types and ID shapes")]
     [InlineData("MissingRoot", "public concrete aggregate")]
     [InlineData(nameof(InternalRoot), "public concrete aggregate")]
