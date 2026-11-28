@@ -90,9 +90,11 @@ internal sealed record ResourceModel(
     {
         var name = char.ToLowerInvariant(domainName[0]) + domainName[1..];
         var candidate = name;
-        for (var index = 1; reserved.Contains(candidate, StringComparer.Ordinal); index++)
+        var index = 1;
+        while (reserved.Contains(candidate, StringComparer.Ordinal))
         {
             candidate = $"{name}{suffix}{index}";
+            index++;
         }
 
         return CSharpIdentifier.Escape(candidate, isAsync: true);
