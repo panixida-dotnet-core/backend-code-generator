@@ -22,6 +22,9 @@ internal sealed record ResourceModel(
     public string WriteRepositoryParameter =>
         char.ToLowerInvariant(AggregateFeature[0]) + AggregateFeature[1..] + "Repository";
 
+    public bool RequiresWriteRepositoryAggregateAlias =>
+        WriteRepositoryNaming.RequiresAggregateAlias(Module, Feature, Resource);
+
     public string ReadDbResource => Child?.ParentResource ?? Resource;
 
     public bool HasDetailsReadModel { get; init; }

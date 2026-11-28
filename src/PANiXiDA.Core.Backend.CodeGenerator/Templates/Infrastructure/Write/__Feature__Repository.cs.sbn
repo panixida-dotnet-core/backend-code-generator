@@ -1,13 +1,13 @@
-using {{ model.domain }};
+{{ use_alias = model.requires_write_repository_aggregate_alias }}using {{ model.domain }};
 using {{ model.domain }}.Abstractions;
 using {{ model.module }}.Infrastructure.Persistence.Core;
 
-using DomainAggregate = {{ model.domain }}.{{ model.resource }};
+{{ if use_alias }}using DomainAggregate = {{ model.domain }}.{{ model.resource }};
 
-namespace {{ model.module }}.Infrastructure.Persistence.Features.{{ model.feature }}.Write;
+{{ end }}namespace {{ model.module }}.Infrastructure.Persistence.Features.{{ model.feature }}.Write;
 
 public sealed class {{ model.feature }}Repository(
     {{ model.module_name }}WriteDbContext dbContext)
     :
-        EfRepository<{{ model.module_name }}WriteDbContext, {{ model.id }}, DomainAggregate>(dbContext),
+        EfRepository<{{ model.module_name }}WriteDbContext, {{ model.id }}, {{ use_alias ? "DomainAggregate" : model.resource }}>(dbContext),
         I{{ model.feature }}Repository;

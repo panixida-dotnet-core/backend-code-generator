@@ -70,6 +70,64 @@ public sealed class GenerationTests
         await backend.BuildLayerAsync("Presentation");
     }
 
+    [Fact(DisplayName = "Use the short aggregate name in a write repository unless it collides")]
+    public async Task UsesWriteRepositoryAliasOnlyForNameCollisions()
+    {
+        using var backend = new ScratchBackend();
+        var job = ScratchBackend.Job("IRepository", "Repository");
+        var models = job["models"]!.AsArray();
+        models.Clear();
+        (string Feature, string Aggregate, bool UseAlias)[] cases =
+        [
+            ("Warehouses", "Warehouse", false),
+            ("Modules", "Module", true),
+            ("Files", "File", true),
+            ("Inventory", "Inventory", true),
+            ("Persistences", "Persistence", true)
+        ];
+        foreach (var (feature, aggregate, useAlias) in cases)
+        {
+            if (useAlias)
+            {
+                foreach (var suffix in new[] { ".cs", "Id.cs" })
+                {
+                    var source = backend.Read($"{ScratchBackend.DomainDirectory}/Warehouses/Warehouse{suffix}")
+                        .Replace("Warehouses", feature, StringComparison.Ordinal)
+                        .Replace("Warehouse", aggregate, StringComparison.Ordinal);
+                    backend.Write($"{ScratchBackend.DomainDirectory}/{feature}/{aggregate}{suffix}", source);
+                }
+            }
+
+            models.Add(new JsonObject
+            {
+                ["aggregate"] = $"{ScratchBackend.ModuleName}.Domain.{feature}.{aggregate}",
+                ["route"] = feature.ToLowerInvariant(),
+                ["detailsFields"] = new JsonArray("Id"),
+                ["listFields"] = new JsonArray("Id")
+            });
+        }
+
+        var files = await backend.RunAsync(job);
+
+        foreach (var (feature, aggregate, useAlias) in cases)
+        {
+            var repository = files.Single(file => Path.GetFileName(file.Path) == $"{feature}Repository.cs");
+            var source = backend.Read(repository.Path);
+            if (useAlias)
+            {
+                source.ShouldContain($"using DomainAggregate = {ScratchBackend.ModuleName}.Domain.{feature}.{aggregate};");
+                source.ShouldContain($"EfRepository<ModuleWriteDbContext, {aggregate}Id, DomainAggregate>");
+            }
+            else
+            {
+                source.ShouldNotContain("using DomainAggregate");
+                source.ShouldContain($"EfRepository<ModuleWriteDbContext, {aggregate}Id, {aggregate}>");
+            }
+        }
+
+        await backend.BuildLayerAsync("Infrastructure");
+    }
+
     [Fact(DisplayName = "Generate a create endpoint without a details endpoint")]
     public async Task GeneratesCreateEndpointWithoutDetails()
     {
