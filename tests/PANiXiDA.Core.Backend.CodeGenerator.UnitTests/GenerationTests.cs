@@ -47,7 +47,8 @@ public sealed class GenerationTests
         code.ShouldContain(source => source.Contains("public sealed record ProductsFilter(string? Search = null) : IFilter;", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("public sealed class ProductsFilterValidator : AbstractValidator<ProductsFilter>;", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains(".SetValidator(new ProductsFilterValidator())", StringComparison.Ordinal));
-        code.ShouldContain(source => source.Contains("new ProductsFilter(search)", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("partial ProductsFilter ToFilter(string? search);", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("filter: GetProductsListMapper.ToFilter(search)", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("filter: query.Filter,", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("ApplyFilter(Query, filter)", StringComparison.Ordinal)
             && source.Contains("matchExpression: item.Name", StringComparison.Ordinal)
@@ -63,6 +64,11 @@ public sealed class GenerationTests
             && source.Contains($"using DomainAggregate = {ScratchBackend.Product};", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains(".RequireAuthorization();", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("DeleteProductMapper.ToCommand(id: id)", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("partial DeleteProductCommand ToCommand(Guid id);", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("partial DeleteProductVariantCommand ToCommand(Guid parentId, Guid id);",
+            StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("partial GetProductVariantDetailsQuery ToQuery(Guid parentId, Guid id);",
+            StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("routeName: new GetProductDetailsEndpoint().Name", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains(".SetValidator(new ProductVariantListItemReadModelSortingValidator())", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("HasColumnType(\"jsonb\")", StringComparison.Ordinal));

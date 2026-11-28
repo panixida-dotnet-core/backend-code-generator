@@ -132,7 +132,9 @@ public sealed class ReadRepositoryTests
     {
         using var backend = new ScratchBackend();
         var filters = hasSearchFields ? ScratchBackend.Job("Filter") : ScratchBackend.Job("Filter", "FilterValidator");
-        var list = ScratchBackend.Job("ListItemReadModel", "GetListQuery", "GetListQueryValidator");
+        var list = ScratchBackend.Job(
+            "ListItemReadModel", "GetListQuery", "GetListQueryValidator",
+            "Endpoints", "GetListEndpoint", "GetListMapper", "ListItemResponse");
         if (!hasSearchFields)
         {
             filters["models"]![0]!["listFields"] = new JsonArray("Id");
@@ -152,7 +154,11 @@ public sealed class ReadRepositoryTests
         source.Contains("RuleFor(query => query.Filter)", StringComparison.Ordinal).ShouldBe(hasSearchFields);
         source.ShouldNotContain("ProductsFilterValidator");
 
-        await backend.BuildLayerAsync("Application");
+        var mapper = listFiles.Single(file => Path.GetFileName(file.Path) == "GetProductsListMapper.cs");
+        var mapperSource = backend.Read(mapper.Path);
+        mapperSource.ShouldContain("partial GetProductsListQuery ToQuery(");
+        mapperSource.Contains("ToFilter(", StringComparison.Ordinal).ShouldBe(hasSearchFields);
+        await backend.BuildLayerAsync("Presentation");
     }
 
     [Fact(DisplayName = "Generate a repository interface in a custom directory without an Application project")]

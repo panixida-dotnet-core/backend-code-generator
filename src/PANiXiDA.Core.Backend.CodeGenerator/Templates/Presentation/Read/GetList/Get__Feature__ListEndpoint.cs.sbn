@@ -27,10 +27,10 @@ internal sealed class Get{{ model.feature }}ListEndpoint : IEndpoint<{{ model.fe
     {
         var result = await mediator.QueryAsync(
             Get{{ model.feature }}ListMapper.ToQuery(
-{{ if model.child }}                parentId: {{ model.child.route_id }},
-{{ end }}{{ if model.has_search_filter }}                search: search,
-{{ end }}                paginationParameters: paginationParameters,
-                sortingParameters: sortingParameters),
+                paginationParameters: paginationParameters,
+                sortingParameters: sortingParameters{{ if model.child }},
+                parentId: {{ model.child.route_id }}{{ end }}{{ if model.has_search_filter }},
+                filter: Get{{ model.feature }}ListMapper.ToFilter(search){{ end }}),
             cancellationToken);
 
         return result.ToHttpResult(onSuccess: page =>
