@@ -16,7 +16,7 @@
 - Supports explicitly configured child entity collections with parent-scoped mutations and paginated queries.
 - Maps scalar properties, enumerations, single-value objects, and compound value objects from the domain model.
 - Ships Scriban templates and shared partials inside the library. Jobs can replace individual templates and output directories.
-- Supports multiple jobs, selected artifacts, explicit overwrite, and deletion of files with the matching generator marker.
+- Supports multiple jobs, selected artifacts, explicit overwrite, and deletion of existing files at the selected output paths.
 
 ## Requirements
 
@@ -109,7 +109,9 @@ The example generates two files. See the [full CRUD example](tests/PANiXiDA.Core
 | `templates` | Optional mapping from an artifact name or an embedded partial filename to a Scriban file within the repository. Relative paths are resolved from `templateBaseDirectory`, which defaults to the repository root when passing `IConfiguration`. |
 | `outputDirectory` | Optional mapping from an artifact name to a directory relative to the repository root. Supports `{Module}`, `{ModuleName}`, `{Feature}`, and `{Resource}`. |
 | `overwriteExisting` | Allows replacing selected files. Defaults to `false`. |
-| `deleteGenerated` | Deletes selected files with a matching generator marker without building Domain. Defaults to `false`. |
+| `deleteGenerated` | Deletes existing files at the selected output paths without building Domain. Defaults to `false`. |
+
+`deleteGenerated` uses the file names and directories resolved from the job, including `outputDirectory` overrides. It also deletes manually edited files at those paths and skips missing files.
 
 For example, `"templates": { "CreateCommand": "Templates/MyCreate.sbn", "DtoRecord.sbn": "Templates/MyDto.sbn" }` overrides one artifact and one shared partial for the job. All other templates come from the package. Pass `templateBaseDirectory: "tools/Acme.Store.CodeGenerator"` to resolve the example overrides next to the tool project. The overload that takes a JSON path resolves relative overrides from that file's directory.
 

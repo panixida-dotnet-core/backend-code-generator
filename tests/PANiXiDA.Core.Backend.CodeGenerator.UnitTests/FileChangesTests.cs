@@ -42,22 +42,23 @@ public sealed class FileChangesTests
         (await backend.RunAsync(job)).ShouldBeEmpty();
     }
 
-    [Fact(DisplayName = "Reject deletion of a hand-written file without deleting other files")]
-    public async Task PreservesFilesWhenDeleteCannotBePlanned()
+    [Fact(DisplayName = "Delete only configured paths regardless of the existing source content")]
+    public async Task DeletesExistingFileAtConfiguredPath()
     {
         using var backend = new ScratchBackend();
-        var job = ScratchBackend.Job("CreateCommand", "ChildCreateCommand");
-        var files = await backend.RunAsync(job);
-        var root = files.Single(file => Path.GetFileName(file.Path) == "CreateProductCommand.cs");
-        var child = files.Single(file => Path.GetFileName(file.Path) == "CreateProductVariantCommand.cs");
-        backend.Write(child.Path, "// handwritten");
+        var job = ScratchBackend.Job("CreateCommand");
         job["deleteGenerated"] = true;
+        job["outputDirectory"] = new JsonObject { ["CreateCommand"] = "generated" };
+        var path = Path.Combine("generated", "CreateProductCommand.cs");
+        const string otherPath = "generated/Keep.cs";
+        backend.Write(path, "public sealed class CreateProductCommand;");
+        backend.Write(otherPath, "public sealed class Keep;");
 
-        var exception = await Should.ThrowAsync<InvalidOperationException>(() => backend.RunAsync(job));
+        var deleted = (await backend.RunAsync(job)).ShouldHaveSingleItem();
 
-        exception.Message.ShouldContain("scaffold marker does not match");
-        File.Exists(backend.FullPath(root.Path)).ShouldBeTrue();
-        backend.Read(child.Path).ShouldBe("// handwritten");
+        deleted.ShouldBe(new GeneratedFile(path, GeneratedFileAction.Deleted));
+        File.Exists(backend.FullPath(path)).ShouldBeFalse();
+        backend.Read(otherPath).ShouldBe("public sealed class Keep;");
     }
 
     [Fact(DisplayName = "Reject duplicate output paths and leave the repository intact")]

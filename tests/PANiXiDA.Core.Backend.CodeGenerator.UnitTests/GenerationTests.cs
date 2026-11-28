@@ -15,6 +15,7 @@ public sealed class GenerationTests
         files.Select(file => file.Path).Distinct().Count().ShouldBe(files.Count);
         files.ShouldAllBe(file => file.Action == GeneratedFileAction.Created);
         var code = files.Select(file => backend.Read(file.Path)).ToArray();
+        code.ShouldAllBe(source => !source.StartsWith("// Scaffolded by CodeGenerator for ", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("var productResult = DomainAggregate.Create(", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("var product = await productsRepository.GetByIdAsync(", StringComparison.Ordinal)
             && source.Contains("productsRepository.Update(product);", StringComparison.Ordinal));
