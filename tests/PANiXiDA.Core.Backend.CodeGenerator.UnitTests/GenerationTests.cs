@@ -24,7 +24,20 @@ public sealed class GenerationTests
             && source.Contains("command.Sku", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("ProductKind.Create", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("Money.Create(", StringComparison.Ordinal));
-        code.ShouldContain(source => source.Contains("Money? listPriceValue = null", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("var listPriceResult = command.ListPrice is { } listPriceInput", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("@listPrice: listPriceResult?.Value", StringComparison.Ordinal));
+        foreach (var operation in new[] { "Create", "Update" })
+        {
+            var aggregateHandler = files.Single(file => Path.GetFileName(file.Path) == $"{operation}ProductHandler.cs");
+            var childHandler = files.Single(file => Path.GetFileName(file.Path) == $"{operation}ProductVariantHandler.cs");
+            backend.Read(aggregateHandler.Path).ReplaceLineEndings("\n").ShouldContain(
+                "Result.Combine(\n            nameResult,\n            kindResult,\n            descriptionResult ?? Result.Success(),\n"
+                + "            listPriceResult ?? Result.Success());");
+            var childSource = backend.Read(childHandler.Path).ReplaceLineEndings("\n");
+            childSource.ShouldContain("Result.Combine(\n            skuResult,\n            priceResult,\n            stockResult);");
+            childSource.ShouldContain("Error.Validation(\"Price is required.\")");
+            childSource.ShouldNotContain("if (priceResult.IsFailure)");
+        }
         code.ShouldContain(source => source.Contains("parent.AddVariant(", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("parent.UpdateVariant(", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("parent.RemoveVariant(", StringComparison.Ordinal));

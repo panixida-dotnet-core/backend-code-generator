@@ -1,16 +1,23 @@
-{{ include "BindCompoundValues.sbn" -}}
-{{ for item in fields }}{{ if item.binds_domain_value && !item.composite }}{{ if item.optional }}        {{ item.value_object }}? {{ item.local_name }}Value = null;
-        if (command.{{ item.name }} is { } {{ item.local_name }}Input)
-        {
-{{ indent = "            " }}{{ else }}{{ indent = "        " }}{{ end }}{{ indent }}var {{ item.local_name }}Result =
-{{ indent }}    {{ item.value_object }}.Create(
-{{ indent }}        {{ if item.optional }}{{ item.local_name }}Input{{ else }}command.{{ item.name }}{{ end }});
-{{ indent }}if ({{ item.local_name }}Result.IsFailure)
-{{ indent }}{
-{{ indent }}    return {{ fail_start }}{{ item.local_name }}Result.Errors{{ fail_end }};
-{{ indent }}}
+{{~
+    domain_fields = []
+    for item in fields
+        if item.binds_domain_value
+            domain_fields = domain_fields | array.add item
+        end
+    end
+~}}
+{{ if domain_fields.size > 0 }}{{ for item in domain_fields }}{{ if item.composite }}{{ include "BindCompoundValues.sbn" }}{{ else if item.optional }}        var {{ item.local_name }}Result = command.{{ item.name }} is { } {{ item.local_name }}Input
+            ? {{ item.value_object }}.Create({{ item.local_name }}Input)
+            : null;
+{{ else }}        var {{ item.local_name }}Result = {{ item.value_object }}.Create(command.{{ item.name }});
+{{ end }}{{ end }}
+        var validation = Result.Combine(
+{{ for item in domain_fields }}            {{ item.local_name }}Result{{ if item.optional }} ?? Result.Success(){{ end }}{{ if !for.last }},
+{{ end }}{{ end }});
 
-{{ indent }}{{ if !item.optional }}var {{ end }}{{ item.local_name }}Value = {{ item.local_name }}Result.Value;
-{{ if item.optional }}        }
-{{ end }}
-{{ end }}{{ end -}}
+        if (validation.IsFailure)
+        {
+            return {{ fail_start }}errors: validation.Errors{{ fail_end }};
+        }
+
+{{ end -}}

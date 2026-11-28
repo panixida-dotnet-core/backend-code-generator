@@ -19,7 +19,7 @@ public sealed class Update{{ model.resource }}Handler(I{{ model.aggregate_featur
    fail_end = ")"
    include "BindDomainValues.sbn" }}        return parent.{{ model.child.update_method }}({{ if model.update_fields.size > 0 }}
             @{{ model.child.update_id_parameter }}: idResult.Value,
-{{ for field in model.update_fields }}            @{{ field.parameter_name }}: {{ if field.binds_domain_value }}{{ field.local_name }}Value{{ else }}command.{{ field.name }}{{ end }}{{ if !for.last }},
+{{ for field in model.update_fields }}            @{{ field.parameter_name }}: {{ field.domain_argument }}{{ if !for.last }},
 {{ end }}{{ end }}{{ else }}idResult.Value{{ end }});
 {{ else }}        var idResult = {{ model.id }}.Create(command.Id);
 
@@ -43,7 +43,7 @@ public sealed class Update{{ model.resource }}Handler(I{{ model.aggregate_featur
    fail_start = "Result.Failure("
    fail_end = ")"
    include "BindDomainValues.sbn" }}        var updateResult = entity.Update({{ if model.update_fields.size > 0 }}
-{{ for field in model.update_fields }}            @{{ field.parameter_name }}: {{ if field.binds_domain_value }}{{ field.local_name }}Value{{ else }}command.{{ field.name }}{{ end }}{{ if !for.last }},
+{{ for field in model.update_fields }}            @{{ field.parameter_name }}: {{ field.domain_argument }}{{ if !for.last }},
 {{ end }}{{ end }}{{ end }});
 
         if (updateResult.IsFailure)

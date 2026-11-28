@@ -39,10 +39,8 @@ public sealed class Create{{ model.resource }}Handler(I{{ repository_feature }}R
             include "BindDomainValues.sbn"
         ~}}
         var {{ result_name }} = {{ factory }}(
-        {{- for field in fields
-            argument = field.binds_domain_value ? field.local_name + "Value" : "command." + field.name
-        }}
-            @{{ field.parameter_name }}: {{ argument }}{{ if !for.last }},{{ end -}}
+        {{- for field in fields }}
+            @{{ field.parameter_name }}: {{ field.domain_argument }}{{ if !for.last }},{{ end -}}
         {{ end -}}
         );
 
