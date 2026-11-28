@@ -17,9 +17,19 @@ internal sealed record CodeField(
 
     public string LocalName => char.ToLowerInvariant(Name[0]) + Name[1..];
 
-    public string DomainArgument => BindsDomainValue
-        ? $"{LocalName}Result{(Optional ? "?" : "")}.Value"
-        : $"command.{Name}";
+    public string DomainArgument
+    {
+        get
+        {
+            if (!BindsDomainValue)
+            {
+                return $"command.{Name}";
+            }
+
+            var memberAccess = Optional ? "?." : ".";
+            return $"{LocalName}Result{memberAccess}Value";
+        }
+    }
 
     public bool RequiredString => Type == "string";
 
