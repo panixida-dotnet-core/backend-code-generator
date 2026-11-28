@@ -245,7 +245,7 @@ public sealed class GenerationTests
             backend.Write($"{otherDomain}/{relative}", content);
         }
 
-        var first = ScratchBackend.Job("CreateCommand");
+        var first = ScratchBackend.Job("CreateCommand", "CreateHandler");
         var models = first["models"]!.AsArray();
         var warehouse = models[0]!.DeepClone().AsObject();
         warehouse["aggregate"] = $"{ScratchBackend.ModuleName}.Domain.Warehouses.Warehouse";
@@ -262,8 +262,12 @@ public sealed class GenerationTests
 
         var files = await backend.RunAsync(first, second);
 
-        files.Count.ShouldBe(3);
+        files.Count.ShouldBe(5);
         files.ShouldContain(file => Path.GetFileName(file.Path) == "CreateWarehouseCommand.cs");
+        var warehouseHandler = files.Single(file => Path.GetFileName(file.Path) == "CreateWarehouseHandler.cs");
+        var warehouseSource = backend.Read(warehouseHandler.Path);
+        warehouseSource.ShouldContain("@name: command.Name");
+        warehouseSource.ShouldNotContain("Result.Combine(");
         var catalogCommand = Path.Combine("output", "Catalog", "Products", "Product", "CreateProductCommand.cs");
         files.ShouldContain(file => file.Path == catalogCommand);
         files.ShouldNotContain(file => file.Path.Contains("Variants", StringComparison.Ordinal));
