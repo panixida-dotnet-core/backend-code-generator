@@ -416,7 +416,9 @@ internal sealed class GenerationPlan(RepositoryLayout repository) : IDisposable
             EnableRelaxedMemberAccess = false,
             TemplateLoader = partials
         };
-        context.PushGlobal(new ScriptObject { ["model"] = model });
+        var globals = new ScriptObject { ["model"] = model };
+        globals.Import("csharp_argument", (Func<string, bool, string>)CSharpIdentifier.Escape);
+        context.PushGlobal(globals);
         try
         {
             return template.Render(context).ReplaceLineEndings("\n").TrimEnd() + "\n";

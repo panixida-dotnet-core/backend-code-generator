@@ -6,13 +6,10 @@
         end
     end
 ~}}
-{{ if domain_fields.size > 0 }}{{ for item in domain_fields }}{{ domain_type = handler.domain_types[item.value_object] }}{{ if item.composite }}{{ include "BindCompoundValues.sbn" }}{{ else if item.optional }}        var {{ item.local_name }}Result = command.{{ item.name }} is { } {{ item.local_name }}Input
-            ? {{ domain_type }}.Create({{ item.local_name }}Input)
-            : null;
-{{ else }}        var {{ item.local_name }}Result = {{ domain_type }}.Create(command.{{ item.name }});
+{{ if domain_fields.size > 0 }}{{ for item in domain_fields }}{{ domain_type = handler.domain_types[item.value_object] }}{{ if item.composite }}{{ include "BindCompoundValues.sbn" }}{{ else }}        var {{ item.local_name }}Result = {{ domain_type }}.Create(command.{{ item.name }});
 {{ end }}{{ end }}
         var validation = Result.Combine(
-{{ for item in domain_fields }}            {{ item.local_name }}Result{{ if item.optional }} ?? Result.Success(){{ end }}{{ if !for.last }},
+{{ for item in domain_fields }}            {{ item.local_name }}Result{{ if !for.last }},
 {{ end }}{{ end }});
 
         if (validation.IsFailure)

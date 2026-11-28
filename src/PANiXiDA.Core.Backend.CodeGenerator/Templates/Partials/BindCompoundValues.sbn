@@ -1,11 +1,12 @@
-{{ if item.optional }}        var {{ item.local_name }}Result = command.{{ item.name }} is { } {{ item.local_name }}Input
-            ? {{ domain_type }}.Create(
+{{ if item.optional }}        var {{ item.local_name }}Result = {{ domain_type }}.Create(
+{{ for component in item.nullable_factory_components }}            {{ csharp_argument component.parameter_name async_handler }}: command.{{ item.name }}?.{{ component.name }}{{ if !for.last }},
+{{ end }}{{ end }});
 {{ else }}        var {{ item.local_name }}Input = command.{{ item.name }};
         var {{ item.local_name }}Result = {{ item.local_name }}Input is null
             ? Result.Failure<{{ domain_type }}>(
                 error: Error.Validation("{{ item.name }} is required.")
                     .WithField(nameof(command.{{ item.name }})))
             : {{ domain_type }}.Create(
-{{ end }}{{ for component in item.components }}                @{{ component.parameter_name }}: {{ item.local_name }}Input.{{ component.name }}{{ if !for.last }},
-{{ end }}{{ end }}){{ if item.optional }}
-            : null{{ end }};
+{{ for component in item.components }}                {{ csharp_argument component.parameter_name async_handler }}: {{ item.local_name }}Input.{{ component.name }}{{ if !for.last }},
+{{ end }}{{ end }});
+{{ end -}}

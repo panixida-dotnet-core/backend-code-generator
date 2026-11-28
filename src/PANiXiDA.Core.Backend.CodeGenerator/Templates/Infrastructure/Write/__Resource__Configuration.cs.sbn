@@ -65,14 +65,14 @@ using DomainAggregate = {{ model.aggregate_domain }}.{{ model.aggregate_resource
 {{ for component in field.components }}            {{ component.name }}: value.{{ component.name }}{{ if !for.last }},
 {{ end }}{{ end }}));
 
-    private static {{ field.value_object }} Deserialize{{ field.name }}(
+    private static {{ field.value_object }}{{ if field.optional }}?{{ end }} Deserialize{{ field.name }}(
         string json)
     {
         var value = JsonSerializer.Deserialize<{{ field.name }}Storage>(json)
             ?? throw new InvalidOperationException("The stored {{ field.name }} must be a JSON object.");
 
         return {{ field.value_object }}.Create(
-{{ for component in field.components }}            @{{ component.parameter_name }}: value.{{ component.name }}{{ if !for.last }},
+{{ for component in field.components }}            {{ csharp_argument component.parameter_name false }}: value.{{ component.name }}{{ if !for.last }},
 {{ end }}{{ end }}).Value;
     }
 {{ end }}{{ end }}{{ for field in model.fields }}{{ if field.composite }}

@@ -24,8 +24,7 @@ public sealed class GenerationTests
             && source.Contains("command.Sku", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("ProductKind.Create", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("Money.Create(", StringComparison.Ordinal));
-        code.ShouldContain(source => source.Contains("var listPriceResult = command.ListPrice is { } listPriceInput", StringComparison.Ordinal));
-        code.ShouldContain(source => source.Contains("@listPrice: listPriceResult?.Value", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("listPrice: listPriceResult.Value", StringComparison.Ordinal));
         foreach (var operation in new[] { "Create", "Update" })
         {
             var aggregateHandler = files.Single(file => Path.GetFileName(file.Path) == $"{operation}ProductHandler.cs");
@@ -34,15 +33,22 @@ public sealed class GenerationTests
             aggregateSource.ShouldContain($"using DomainAggregate = {ScratchBackend.Product};");
             aggregateSource.ShouldContain($"using {ScratchBackend.ModuleName}.Domain.Products.ValueObjects;");
             aggregateSource.ShouldContain("var nameResult = ProductName.Create(command.Name);");
+            aggregateSource.ShouldContain("var descriptionResult = ProductDescription.Create(command.Description);");
+            aggregateSource.ShouldContain("amount: command.ListPrice?.Amount,");
+            aggregateSource.ShouldContain("currency: command.ListPrice?.Currency);");
+            aggregateSource.ShouldContain("name: nameResult.Value,");
+            aggregateSource.ShouldNotContain("@amount:");
+            aggregateSource.ShouldNotContain("@name:");
             aggregateSource.ShouldNotContain("global::");
             aggregateSource.ShouldContain(";\n\nnamespace ");
             aggregateSource.ShouldContain(
-                "Result.Combine(\n            nameResult,\n            kindResult,\n            descriptionResult ?? Result.Success(),\n"
-                + "            listPriceResult ?? Result.Success());");
+                "Result.Combine(\n            nameResult,\n            kindResult,\n            descriptionResult,\n            listPriceResult);");
             var childSource = backend.Read(childHandler.Path).ReplaceLineEndings("\n");
             childSource.ShouldContain($"using {ScratchBackend.ModuleName}.Domain.Products.ValueObjects;");
             childSource.ShouldContain("var parentIdResult = ProductId.Create(command.ParentId);");
             childSource.ShouldContain("var skuResult = ProductSku.Create(command.Sku);");
+            childSource.ShouldContain("amount: priceInput.Amount,");
+            childSource.ShouldNotContain("@amount:");
             childSource.ShouldNotContain("global::");
             childSource.ShouldContain(";\n\nnamespace ");
             childSource.ShouldNotContain("using DomainAggregate");
@@ -213,18 +219,18 @@ public sealed class GenerationTests
             {
                 private Warehouse(WarehouseId id) : base(id) { }
 
-                public Collision.First.Amount First { get; private set; } = default!;
+                public Collision.First.Amount Event { get; private set; } = default!;
                 public Collision.Second.Amount Second { get; private set; } = default!;
                 public Collision.Threading.Counter Count { get; private set; } = default!;
                 public Measure? Measure { get; private set; }
 
                 public static Result<Warehouse> Create(
-                    Collision.First.Amount first,
+                    Collision.First.Amount @event,
                     Collision.Second.Amount second,
                     Collision.Threading.Counter count,
                     Measure? measure) =>
                     Result.Success(new Warehouse(WarehouseId.New())
-                        { First = first, Second = second, Count = count, Measure = measure });
+                        { Event = @event, Second = second, Count = count, Measure = measure });
             }
             """);
         backend.Write($"{ScratchBackend.DomainDirectory}/Warehouses/Measure.cs", """
@@ -257,7 +263,10 @@ public sealed class GenerationTests
             $"namespace {valueObjects}; public sealed class ProductVariantId;");
         var productPath = $"{ScratchBackend.DomainDirectory}/Products/Product.cs";
         backend.Write(productPath, backend.Read(productPath)
-            .Replace("ProductVariantId", $"global::{childNamespace}.ProductVariantId", StringComparison.Ordinal));
+            .Replace("ProductVariantId", $"global::{childNamespace}.ProductVariantId", StringComparison.Ordinal)
+            .Replace($"UpdateVariant(global::{childNamespace}.ProductVariantId id",
+                $"UpdateVariant(global::{childNamespace}.ProductVariantId @await", StringComparison.Ordinal)
+            .Replace("_variants.Find(item => item.Id == id)", "_variants.Find(item => item.Id == @await)", StringComparison.Ordinal));
 
         var warehouseJob = ScratchBackend.Job("IRepository", "CreateCommand", "CreateHandler");
         var warehouse = warehouseJob["models"]![0]!.AsObject();
@@ -273,10 +282,12 @@ public sealed class GenerationTests
         create.ShouldContain("using DomainAmount2 = Collision.Second.Amount;");
         create.ShouldContain("using DomainCounter = Collision.Threading.Counter;");
         create.ShouldNotContain("using Collision.Threading;");
-        create.ShouldContain("Measure.Create(measureInput)");
+        create.ShouldContain("Measure.Create(command.Measure)");
+        create.ShouldContain("@event: eventResult.Value");
         var update = backend.Read(files.Single(file => Path.GetFileName(file.Path) == "UpdateProductVariantHandler.cs").Path);
         update.ShouldContain($"using DomainProductVariantId = {childNamespace}.ProductVariantId;");
         update.ShouldContain("DomainProductVariantId.Create(command.Id)");
+        update.ShouldContain("@await: idResult.Value");
 
         await backend.BuildLayerAsync("Application");
     }
@@ -377,7 +388,7 @@ public sealed class GenerationTests
         files.ShouldContain(file => Path.GetFileName(file.Path) == "CreateWarehouseCommand.cs");
         var warehouseHandler = files.Single(file => Path.GetFileName(file.Path) == "CreateWarehouseHandler.cs");
         var warehouseSource = backend.Read(warehouseHandler.Path);
-        warehouseSource.ShouldContain("@name: command.Name");
+        warehouseSource.ShouldContain("name: command.Name");
         warehouseSource.ShouldNotContain("Result.Combine(");
         var catalogCommand = Path.Combine("output", "Catalog", "Products", "Product", "CreateProductCommand.cs");
         files.ShouldContain(file => file.Path == catalogCommand);

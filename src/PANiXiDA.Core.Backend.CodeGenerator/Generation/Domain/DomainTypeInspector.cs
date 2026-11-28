@@ -39,7 +39,7 @@ internal static class DomainTypeInspector
         var id = baseType.GetGenericArguments()[0];
         if (id.Namespace != entity.Namespace
             || id.GetProperty(ValuePropertyName)?.PropertyType != typeof(Guid)
-            || !HasFactory(id, typeof(Guid), allowNullableResult: false))
+            || FindFactory(id, [typeof(Guid)], allowNullableResult: false) is null)
         {
             throw new InvalidOperationException(
                 $"'{entity.FullName}' requires a typed Guid ID in the same namespace with Value and Create(Guid).");
@@ -73,23 +73,27 @@ internal static class DomainTypeInspector
                 $"'{aggregate.FullName}' requires exactly one public '{name}' method with the expected Result type.");
     }
 
-    internal static bool HasFactory(Type type, Type argumentType, bool allowNullableResult)
+    internal static MethodInfo? FindFactory(Type type, Type[] argumentTypes, bool allowNullableResult)
     {
-        var factory = type.GetMethod(CreateMethodName, BindingFlags.Public | BindingFlags.Static, [argumentType]);
-        var resultType = factory?.ReturnType;
-        if (resultType is null || !IsGenericResult(resultType))
+        var factory = type.GetMethod(CreateMethodName, BindingFlags.Public | BindingFlags.Static, argumentTypes);
+        return factory is not null && MatchesResult(factory.ReturnType, type, allowNullableResult) ? factory : null;
+    }
+
+    internal static bool MatchesResult(Type type, Type? payload, bool allowNullableResult = false)
+    {
+        if (payload is null)
+        {
+            return type.FullName == ResultType;
+        }
+
+        if (!IsGenericResult(type))
         {
             return false;
         }
 
-        var payload = resultType.GetGenericArguments()[0];
-        return payload == type || (allowNullableResult && Nullable.GetUnderlyingType(payload) == type);
+        var result = type.GetGenericArguments()[0];
+        return result == payload || (allowNullableResult && Nullable.GetUnderlyingType(result) == payload);
     }
-
-    internal static bool MatchesResult(Type type, Type? payload) =>
-        payload is null
-            ? type.FullName == ResultType
-            : IsGenericResult(type) && type.GetGenericArguments()[0] == payload;
 
     private static bool IsGenericResult(Type type) =>
         type.IsGenericType && type.GetGenericTypeDefinition().FullName == GenericResultType;

@@ -34,6 +34,9 @@ internal sealed class FieldSamples
     public NonIntegerLength NonIntegerLength { get; init; } = default!;
 
     public NonLiteralLength? NonLiteralLength { get; init; }
+    public NonIntegerLength? OptionalLabel { get; init; }
+    public StringPair? OptionalPair { get; init; }
+    public NullableStringPair? NullablePair { get; init; }
 
     public NullableQuantity? NullableQuantity { get; init; }
 
@@ -62,6 +65,10 @@ internal sealed class FieldSamples
     public static void WrongCompoundType(string? compoundStruct) => _ = compoundStruct;
 
     public static void WrongCompoundNullability(CompoundStruct compoundStruct) => _ = compoundStruct;
+    public static void BindOptionalLabel(NonIntegerLength? optionalLabel) => _ = optionalLabel;
+    public static void BindOptionalPair(StringPair? optionalPair) => _ = optionalPair;
+    public static void BindNullablePair(NullableStringPair? nullablePair) => _ = nullablePair;
+    public static void BindOptionalCompound(CompoundStruct? compoundStruct) => _ = compoundStruct;
 
     public static void WrongLeadingId(string id) => _ = id;
 
@@ -111,6 +118,17 @@ public sealed record NonLiteralLength(string Value)
     public static Result<NonLiteralLength> Create(string? value) => Result.Success(new NonLiteralLength(value ?? ""));
 }
 
+public sealed record StringPair(string Alpha, string Beta)
+{
+    public static Result<StringPair> Create(string alpha, string beta) => Result.Success(new StringPair(alpha, beta));
+}
+
+public sealed record NullableStringPair(string Alpha, string Beta)
+{
+    public static Result<NullableStringPair?> Create(string? alpha, string? beta) =>
+        Result.Success<NullableStringPair?>(alpha is null || beta is null ? null : new NullableStringPair(alpha, beta));
+}
+
 public readonly record struct NullableQuantity(int Value)
 {
     public static Result<NullableQuantity?> Create(int? value) =>
@@ -123,11 +141,11 @@ public readonly record struct CompoundStruct(int? Count, string? Text)
 
     public int this[int index] => index;
 
-    public static Result<CompoundStruct> Create(int? count, string? text) => Result.Success(new CompoundStruct(count, text));
+    public static Result<CompoundStruct?> Create(int? count, string? text) => Result.Success<CompoundStruct?>(new CompoundStruct(count, text));
 
-    public static Result<CompoundStruct> Create(int? count) => Create(count, null);
+    public static Result<CompoundStruct?> Create(int? count) => Create(count, null);
 
-    public static Result<CompoundStruct> Create<T>(int? count) => Create(count, null);
+    public static Result<CompoundStruct?> Create<T>(int? count) => Create(count, null);
 
     public static CompoundStruct Create(string? text, int? count) => new(count, text);
 }

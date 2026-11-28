@@ -70,6 +70,30 @@ public sealed class FieldModelTests
         exception.Message.ShouldContain("match a writable domain property");
     }
 
+    [Theory(DisplayName = "Require optional value object factories to accept nullable command values")]
+    [InlineData(nameof(FieldSamples.BindOptionalLabel), nameof(FieldSamples.OptionalLabel), "a nullable value")]
+    [InlineData(nameof(FieldSamples.BindOptionalPair), nameof(FieldSamples.OptionalPair), "its nullable components")]
+    public void RequiresNullableFactories(string method, string property, string message)
+    {
+        var exception = Should.Throw<InvalidOperationException>(() =>
+            CodeFieldFactory.BindParameters(typeof(FieldSamples).GetMethod(method)!, [Describe(property)], new()));
+
+        exception.Message.ShouldContain(message);
+    }
+
+    [Theory(DisplayName = "Reuse a compound factory accepting nullable components")]
+    [InlineData(nameof(FieldSamples.CompoundStruct), nameof(FieldSamples.BindOptionalCompound))]
+    [InlineData(nameof(FieldSamples.NullablePair), nameof(FieldSamples.BindNullablePair))]
+    public void ReusesFactoryWithNullableComponents(string property, string methodName)
+    {
+        var field = Describe(property);
+        var method = typeof(FieldSamples).GetMethod(methodName)!;
+
+        var binding = CodeFieldFactory.BindParameters(method, [field], new()).Single();
+
+        binding.NullableFactoryComponents.ShouldBe(field.Components);
+    }
+
     [Theory(DisplayName = "Require the typed child ID as the leading argument")]
     [InlineData(nameof(FieldSamples.NoParameters))]
     [InlineData(nameof(FieldSamples.WrongLeadingId))]

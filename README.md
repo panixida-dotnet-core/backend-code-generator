@@ -95,7 +95,7 @@ The example generates two files. See the [full CRUD example](tests/PANiXiDA.Core
 
 - An aggregate derives from `AggregateRoot<TId>` and has a Guid-backed ID exposing `Value` and `Create(Guid)`. It provides a static `Create` returning `Result<TAggregate>` and an instance `Update` returning `Result`.
 - Method parameters bind to writable properties by name and input type. A private setter is supported. Use the domain types in aggregate and child methods. The generated handlers bind scalar request values to identifiers, enumerations, and value objects through their factories. For a compound value object, each factory parameter must match a readable scalar property by name, type, and nullability.
-- Create and update handlers call the value object factories and combine their errors with `Result.Combine` before invoking the aggregate. A missing optional value contributes no error.
+- Create and update handlers call the value object factories and combine their errors with `Result.Combine` before invoking the aggregate. An optional value object requires a `Create` overload accepting the nullable value or all nullable components. The factory determines the result for missing input.
 - Both read projections include `Id`. Compound value objects render as nested DTOs and map to a `jsonb` column. The list query uses the standard read-model sorting validator. Sort by top-level scalar fields when the projection deserializes JSON in C#.
 - A child collection exposes entities deriving from `Entity<TId>`. Configure `collection`, `resource`, `route`, read projections, and the aggregate method names for the write artifacts you select. Create returns `Result<TChildId>`. Update and delete take the child ID first and return `Result`.
 

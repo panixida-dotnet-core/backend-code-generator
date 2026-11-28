@@ -51,7 +51,7 @@ internal static class CodeFieldFactory
         }
 
         var propertyName = $"{property.DeclaringType!.FullName}.{property.Name}";
-        var components = GetComponents(type, nullability, propertyName);
+        var components = GetComponents(type, nullability, propertyName, optional);
         if (components is not null)
         {
             return new CodeField(
@@ -102,7 +102,12 @@ internal static class CodeFieldFactory
                     $"'{parameterName}' must match a writable domain property and its input type.");
             }
 
-            bound.Add(field with { ParameterName = parameter.Name, BindsDomainValue = bindsDomainValue });
+            var binding = field with
+            {
+                ParameterName = parameter.Name,
+                BindsDomainValue = bindsDomainValue
+            };
+            bound.Add(bindsDomainValue && optional ? BindNullableFactory(binding, underlying, nullability) : binding);
         }
 
         return [.. bound];
@@ -133,10 +138,8 @@ internal static class CodeFieldFactory
             return null;
         }
 
-        var factoryInput = optional && value.PropertyType.IsValueType
-            ? typeof(Nullable<>).MakeGenericType(value.PropertyType)
-            : value.PropertyType;
-        if (!DomainTypeInspector.HasFactory(type, factoryInput, allowNullableResult: optional))
+        var factoryInput = optional ? ToNullableType(value.PropertyType) : value.PropertyType;
+        if (DomainTypeInspector.FindFactory(type, [factoryInput], allowNullableResult: optional) is null)
         {
             return null;
         }
@@ -152,25 +155,18 @@ internal static class CodeFieldFactory
             maxLength is { IsLiteral: true } && maxLength.FieldType == typeof(int));
     }
 
-    private static ValueComponent[]? GetComponents(Type type, NullabilityInfoContext nullability, string propertyName)
+    private static ValueComponent[]? GetComponents(Type type, NullabilityInfoContext nullability, string propertyName, bool optional)
     {
         if (!type.IsPublic || type.IsGenericType)
         {
             return null;
         }
 
-        var candidates = type.GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .Where(method => method.Name == DomainTypeInspector.CreateMethodName
-                && !method.IsGenericMethod
-                && DomainTypeInspector.MatchesResult(method.ReturnType, type))
-            .Select(method => method.GetParameters())
-            .Where(parameters => parameters.Length > 1)
-            .ToArray();
         var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(property => property.GetMethod is { IsPublic: true } && property.GetIndexParameters().Length == 0)
             .ToArray();
-        var matches = candidates
-            .Select(parameters => BindComponents(parameters, properties, nullability))
+        var matches = GetCompoundFactories(type, allowNullableResult: optional)
+            .Select(parameters => BindComponents(parameters, properties, nullability, nullableInput: false))
             .OfType<ValueComponent[]>()
             .ToArray();
         if (matches.Length > 1)
@@ -185,29 +181,83 @@ internal static class CodeFieldFactory
     private static ValueComponent[]? BindComponents(
         ParameterInfo[] parameters,
         IReadOnlyList<PropertyInfo> properties,
-        NullabilityInfoContext nullability)
+        NullabilityInfoContext nullability,
+        bool nullableInput)
     {
         var components = new List<ValueComponent>(parameters.Length);
         foreach (var parameter in parameters)
         {
             var property = properties.SingleOrDefault(candidate =>
                 string.Equals(candidate.Name, parameter.Name, StringComparison.OrdinalIgnoreCase));
-            var optional = IsOptional(parameter.ParameterType, nullability.Create(parameter));
             var underlying = Nullable.GetUnderlyingType(parameter.ParameterType) ?? parameter.ParameterType;
             if (property is null
-                || property.PropertyType != parameter.ParameterType
-                || optional != IsOptional(property.PropertyType, nullability.Create(property))
+                || !MatchesComponentType(property, parameter, nullability, nullableInput)
                 || !s_scalarNames.TryGetValue(underlying, out var scalar)
                 || components.Any(component => component.Name == property.Name))
             {
                 return null;
             }
 
+            var optional = IsOptional(property.PropertyType, nullability.Create(property));
             components.Add(new ValueComponent(property.Name, optional ? scalar + "?" : scalar, parameter.Name!));
         }
 
         return [.. components];
     }
+
+    private static CodeField BindNullableFactory(CodeField field, Type type, NullabilityInfoContext nullability)
+    {
+        if (field.Components is not { } components)
+        {
+            var value = type.GetProperty(DomainTypeInspector.ValuePropertyName) ?? type.GetProperty("Name")!;
+            var factory = DomainTypeInspector.FindFactory(type, [ToNullableType(value.PropertyType)], allowNullableResult: true)!;
+            if (nullability.Create(factory.GetParameters()[0]).WriteState == NullabilityState.NotNull)
+            {
+                throw new InvalidOperationException($"Optional value object '{field.Name}' requires Create accepting a nullable value.");
+            }
+
+            return field;
+        }
+
+        var properties = components.Select(component => type.GetProperty(component.Name)!).ToArray();
+        var matches = GetCompoundFactories(type, allowNullableResult: true)
+            .Where(parameters => parameters.Length == components.Count)
+            .Select(parameters => BindComponents(parameters, properties, nullability, nullableInput: true))
+            .OfType<ValueComponent[]>()
+            .ToArray();
+        if (matches.Length != 1)
+        {
+            throw new InvalidOperationException(
+                $"Optional value object '{field.Name}' requires exactly one Create accepting its nullable components.");
+        }
+
+        return field with { NullableFactoryComponents = matches[0] };
+    }
+
+    private static IEnumerable<ParameterInfo[]> GetCompoundFactories(Type type, bool allowNullableResult) =>
+        type.GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Where(method => method.Name == DomainTypeInspector.CreateMethodName
+                && !method.IsGenericMethod
+                && DomainTypeInspector.MatchesResult(method.ReturnType, type, allowNullableResult))
+            .Select(method => method.GetParameters())
+            .Where(parameters => parameters.Length > 1);
+
+    private static bool MatchesComponentType(
+        PropertyInfo property, ParameterInfo parameter, NullabilityInfoContext nullability, bool nullableInput)
+    {
+        if (nullableInput)
+        {
+            return parameter.ParameterType == ToNullableType(property.PropertyType)
+                && nullability.Create(parameter).WriteState != NullabilityState.NotNull;
+        }
+
+        return property.PropertyType == parameter.ParameterType
+            && (!IsOptional(property.PropertyType, nullability.Create(property))
+                || nullability.Create(parameter).WriteState != NullabilityState.NotNull);
+    }
+
+    private static Type ToNullableType(Type type) =>
+        type.IsValueType && Nullable.GetUnderlyingType(type) is null ? typeof(Nullable<>).MakeGenericType(type) : type;
 
     private static bool IsOptional(Type type, NullabilityInfo nullability) =>
         Nullable.GetUnderlyingType(type) is not null || nullability.ReadState == NullabilityState.Nullable;

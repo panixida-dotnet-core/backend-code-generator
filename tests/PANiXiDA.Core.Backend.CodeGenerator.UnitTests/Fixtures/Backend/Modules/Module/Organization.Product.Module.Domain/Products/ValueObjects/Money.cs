@@ -26,4 +26,19 @@ public sealed partial class Money : ValueObject
             ? Result.Failure<Money>(validation.Errors)
             : Result.Success(new Money(amount, currencyCode!));
     }
+
+    public static Result<Money?> Create(decimal? amount, string? currency)
+    {
+        if (amount is null && currency is null)
+        {
+            return Result.Success<Money?>(null);
+        }
+
+        if (amount is null)
+        {
+            return Result.Failure<Money?>(Error.Validation("Amount is required.").WithField(nameof(Amount)));
+        }
+
+        return Create(amount.Value, currency ?? string.Empty).Map(static money => (Money?)money);
+    }
 }

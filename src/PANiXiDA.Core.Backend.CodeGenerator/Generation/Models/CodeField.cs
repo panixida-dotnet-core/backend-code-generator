@@ -15,21 +15,11 @@ internal sealed record CodeField(
     public string? ParameterName { get; init; }
     public bool BindsDomainValue { get; init; }
 
+    public IReadOnlyList<ValueComponent>? NullableFactoryComponents { get; init; }
+
     public string LocalName => char.ToLowerInvariant(Name[0]) + Name[1..];
 
-    public string DomainArgument
-    {
-        get
-        {
-            if (!BindsDomainValue)
-            {
-                return $"command.{Name}";
-            }
-
-            var memberAccess = Optional ? "?." : ".";
-            return $"{LocalName}Result{memberAccess}Value";
-        }
-    }
+    public string DomainArgument => BindsDomainValue ? $"{LocalName}Result.Value" : $"command.{Name}";
 
     public bool RequiredString => Type == "string";
 

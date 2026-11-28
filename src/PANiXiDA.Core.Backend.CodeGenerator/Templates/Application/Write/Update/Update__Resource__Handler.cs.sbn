@@ -1,4 +1,5 @@
 {{ handler = model.update_handler_types
+   async_handler = true
    include "WriteHandlerUsings.sbn" }}
 namespace {{ model.module }}.Application.{{ model.feature }}.Write.Update;
 
@@ -18,8 +19,8 @@ public sealed class Update{{ model.resource }}Handler(I{{ model.aggregate_featur
    fail_start = "Result.Failure("
    fail_end = ")"
    include "BindDomainValues.sbn" }}        return parent.{{ model.child.update_method }}({{ if model.update_fields.size > 0 }}
-            @{{ model.child.update_id_parameter }}: idResult.Value,
-{{ for field in model.update_fields }}            @{{ field.parameter_name }}: {{ field.domain_argument }}{{ if !for.last }},
+            {{ csharp_argument model.child.update_id_parameter async_handler }}: idResult.Value,
+{{ for field in model.update_fields }}            {{ csharp_argument field.parameter_name async_handler }}: {{ field.domain_argument }}{{ if !for.last }},
 {{ end }}{{ end }}{{ else }}idResult.Value{{ end }});
 {{ else }}        var idResult = {{ handler.id_type }}.Create(command.Id);
 
@@ -43,7 +44,7 @@ public sealed class Update{{ model.resource }}Handler(I{{ model.aggregate_featur
    fail_start = "Result.Failure("
    fail_end = ")"
    include "BindDomainValues.sbn" }}        var updateResult = entity.Update({{ if model.update_fields.size > 0 }}
-{{ for field in model.update_fields }}            @{{ field.parameter_name }}: {{ field.domain_argument }}{{ if !for.last }},
+{{ for field in model.update_fields }}            {{ csharp_argument field.parameter_name async_handler }}: {{ field.domain_argument }}{{ if !for.last }},
 {{ end }}{{ end }}{{ end }});
 
         if (updateResult.IsFailure)
