@@ -35,6 +35,8 @@ internal static class WriteAggregateNaming
         return aggregate == feature
             || module.Split('.').Contains(aggregate, StringComparer.Ordinal)
             || s_persistenceNamespaces.Contains(aggregate)
-            || s_sdkTypeNames.Contains(aggregate);
+            || ConflictsWithSdkType(aggregate);
     }
+
+    internal static bool ConflictsWithSdkType(string name) => s_sdkTypeNames.Contains(name);
 }

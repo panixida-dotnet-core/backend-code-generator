@@ -1,19 +1,9 @@
-{{~
-    repository_feature = model.feature
-    if model.child
-        repository_feature = model.child.parent_feature
-    end
-~}}
-{{~ if model.child ~}}
-using {{ model.child.parent_domain }};
-using {{ model.child.parent_domain }}.Abstractions;
-{{~ else ~}}
-using {{ model.domain }}.Abstractions;
-{{~ end ~}}
+{{ handler = model.create_handler_types
+   include "WriteHandlerUsings.sbn" }}
 
 namespace {{ model.module }}.Application.{{ model.feature }}.Write.Create;
 
-public sealed class Create{{ model.resource }}Handler(I{{ repository_feature }}Repository {{ model.write_repository_parameter }})
+public sealed class Create{{ model.resource }}Handler(I{{ model.aggregate_feature }}Repository {{ model.write_repository_parameter }})
     : ICommandHandler<Create{{ model.resource }}Command, Result<Guid>>{{ if model.child }}, IRequireTransaction{{ end }}
 {
     public {{ if model.child }}async {{ end }}Task<Result<Guid>> HandleAsync(
@@ -25,6 +15,7 @@ public sealed class Create{{ model.resource }}Handler(I{{ repository_feature }}R
             if model.child
                 failure = "Result.Failure<Guid>"
                 with_id = false
+                parent_id_type = handler.parent_id_type
                 include "LoadParent.sbn"
                 fail_start = "Result.Failure<Guid>("
                 fail_end = ")"
@@ -34,7 +25,7 @@ public sealed class Create{{ model.resource }}Handler(I{{ repository_feature }}R
                 fail_start = "Task.FromResult(Result.Failure<Guid>("
                 fail_end = "))"
                 result_name = "entityResult"
-                factory = "global::" + model.domain + "." + model.resource + ".Create"
+                factory = handler.aggregate_type + ".Create"
             end
             include "BindDomainValues.sbn"
         ~}}

@@ -37,6 +37,7 @@ internal static class ResourceModelFactory
 
         return MakeModel(
             target,
+            aggregate,
             id,
             settings.Route,
             (fields,
@@ -112,26 +113,30 @@ internal static class ResourceModelFactory
             settings.DeleteMethod);
         return MakeModel(
             target,
+            entity,
             id,
             $"{parentRoute}/{{{routeId.ToLowerInvariant()}:guid}}/{settings.Route}",
             (fields, createFields, updateFields),
             (settings.DetailsFields, settings.ListFields),
-            child);
+            child,
+            parentId);
     }
 
     private static ResourceModel MakeModel(
         ResourceTarget target,
+        Type resource,
         Type id,
         string route,
         (CodeField[] All, CodeField[] Create, CodeField[] Update) fields,
         (IReadOnlyList<string> Details, IReadOnlyList<string> List) projections,
-        ChildModel? child = null)
+        ChildModel? child = null,
+        Type? parentId = null)
     {
         var readableFields = fields.All
             .Prepend(new CodeField(DomainTypeInspector.IdPropertyName, nameof(Guid), false, null, null, false))
             .ToArray();
 
-        return new ResourceModel(
+        var model = new ResourceModel(
             target.Project.Module,
             target.Project.ModuleName,
             target.Feature,
@@ -145,6 +150,12 @@ internal static class ResourceModelFactory
             CodeFieldFactory.SelectProjection(projections.Details, readableFields, "detailsFields"),
             CodeFieldFactory.SelectProjection(projections.List, readableFields, "listFields"),
             child);
+
+        return model with
+        {
+            CreateHandlerTypes = WriteHandlerTypes.Create(model, resource, id, parentId, isUpdate: false),
+            UpdateHandlerTypes = WriteHandlerTypes.Create(model, resource, id, parentId, isUpdate: true)
+        };
     }
 
     private static MethodInfo? GetChildOperation(

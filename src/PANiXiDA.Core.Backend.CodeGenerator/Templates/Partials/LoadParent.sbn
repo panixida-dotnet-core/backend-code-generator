@@ -1,4 +1,4 @@
-        var parentIdResult = {{ model.child.parent_id }}.Create(command.ParentId);
+        var parentIdResult = {{ parent_id_type }}.Create(command.ParentId);
         if (parentIdResult.IsFailure)
         {
             return {{ failure }}(parentIdResult.Errors);
@@ -11,7 +11,7 @@
                 Error.NotFound($"{{ model.child.parent_resource }} with id '{command.ParentId}' was not found."));
         }
 
-{{ if with_id }}        var idResult = {{ model.id }}.Create(command.Id);
+{{ if with_id }}        var idResult = {{ id_type }}.Create(command.Id);
         if (idResult.IsFailure)
         {
             return {{ failure }}(idResult.Errors);

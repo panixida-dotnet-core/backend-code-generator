@@ -1,6 +1,5 @@
-using {{ model.domain }};
-{{ if model.child && model.child.parent_domain != model.domain }}using {{ model.child.parent_domain }};
-{{ end }}using {{ if model.child }}{{ model.child.parent_domain }}{{ else }}{{ model.domain }}{{ end }}.Abstractions;
+{{ handler = model.update_handler_types
+   include "WriteHandlerUsings.sbn" }}
 
 namespace {{ model.module }}.Application.{{ model.feature }}.Write.Update;
 
@@ -13,6 +12,8 @@ public sealed class Update{{ model.resource }}Handler(I{{ model.aggregate_featur
     {
 {{ if model.child }}{{ failure = "Result.Failure"
    with_id = true
+   parent_id_type = handler.parent_id_type
+   id_type = handler.id_type
    include "LoadParent.sbn"
    fields = model.update_fields
    fail_start = "Result.Failure("
@@ -21,7 +22,7 @@ public sealed class Update{{ model.resource }}Handler(I{{ model.aggregate_featur
             @{{ model.child.update_id_parameter }}: idResult.Value,
 {{ for field in model.update_fields }}            @{{ field.parameter_name }}: {{ field.domain_argument }}{{ if !for.last }},
 {{ end }}{{ end }}{{ else }}idResult.Value{{ end }});
-{{ else }}        var idResult = {{ model.id }}.Create(command.Id);
+{{ else }}        var idResult = {{ handler.id_type }}.Create(command.Id);
 
         if (idResult.IsFailure)
         {
@@ -36,7 +37,7 @@ public sealed class Update{{ model.resource }}Handler(I{{ model.aggregate_featur
         {
             return Result.Failure(
                 Error.NotFound($"{{ model.resource }} with id '{command.Id}' was not found.")
-                    .WithField(nameof({{ model.resource }})));
+                    .WithField({{ if handler.aggregate_type == model.resource }}nameof({{ model.resource }}){{ else }}typeof({{ handler.aggregate_type }}).Name{{ end }}));
         }
 
 {{ fields = model.update_fields

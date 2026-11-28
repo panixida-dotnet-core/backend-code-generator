@@ -13,6 +13,8 @@ public sealed class Delete{{ model.resource }}Handler(I{{ model.aggregate_featur
     {
 {{ if model.child }}{{ failure = "Result.Failure"
    with_id = true
+   parent_id_type = model.child.parent_id
+   id_type = model.id
    include "LoadParent.sbn" }}        return parent.{{ model.child.delete_method }}(idResult.Value);
 {{ else }}        var idResult = {{ model.id }}.Create(command.Id);
 

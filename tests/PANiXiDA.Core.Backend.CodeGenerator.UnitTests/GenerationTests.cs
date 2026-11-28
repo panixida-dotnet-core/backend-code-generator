@@ -15,7 +15,7 @@ public sealed class GenerationTests
         files.Select(file => file.Path).Distinct().Count().ShouldBe(files.Count);
         files.ShouldAllBe(file => file.Action == GeneratedFileAction.Created);
         var code = files.Select(file => backend.Read(file.Path)).ToArray();
-        code.ShouldContain(source => source.Contains("Product.Create(", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("DomainAggregate.Create(", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("var nameResult =", StringComparison.Ordinal)
             && source.Contains("ProductName.Create(", StringComparison.Ordinal)
             && source.Contains("ProductKind.Create(", StringComparison.Ordinal)
@@ -30,10 +30,20 @@ public sealed class GenerationTests
         {
             var aggregateHandler = files.Single(file => Path.GetFileName(file.Path) == $"{operation}ProductHandler.cs");
             var childHandler = files.Single(file => Path.GetFileName(file.Path) == $"{operation}ProductVariantHandler.cs");
-            backend.Read(aggregateHandler.Path).ReplaceLineEndings("\n").ShouldContain(
+            var aggregateSource = backend.Read(aggregateHandler.Path).ReplaceLineEndings("\n");
+            aggregateSource.ShouldContain($"using DomainAggregate = {ScratchBackend.Product};");
+            aggregateSource.ShouldContain($"using {ScratchBackend.ModuleName}.Domain.Products.ValueObjects;");
+            aggregateSource.ShouldContain("var nameResult = ProductName.Create(command.Name);");
+            aggregateSource.ShouldNotContain("global::");
+            aggregateSource.ShouldContain(
                 "Result.Combine(\n            nameResult,\n            kindResult,\n            descriptionResult ?? Result.Success(),\n"
                 + "            listPriceResult ?? Result.Success());");
             var childSource = backend.Read(childHandler.Path).ReplaceLineEndings("\n");
+            childSource.ShouldContain($"using {ScratchBackend.ModuleName}.Domain.Products.ValueObjects;");
+            childSource.ShouldContain("var parentIdResult = ProductId.Create(command.ParentId);");
+            childSource.ShouldContain("var skuResult = ProductSku.Create(command.Sku);");
+            childSource.ShouldNotContain("global::");
+            childSource.ShouldNotContain("using DomainAggregate");
             childSource.ShouldContain("Result.Combine(\n            skuResult,\n            priceResult,\n            stockResult);");
             childSource.ShouldContain("Error.Validation(\"Price is required.\")");
             childSource.ShouldNotContain("if (priceResult.IsFailure)");
@@ -105,23 +115,24 @@ public sealed class GenerationTests
         await backend.BuildLayerAsync("Presentation");
     }
 
-    [Fact(DisplayName = "Use the short aggregate name in write repositories and EF configuration unless it collides")]
+    [Fact(DisplayName = "Use the short aggregate name in write code unless the surrounding namespace or imports collide")]
     public async Task UsesWriteAggregateAliasOnlyForNameCollisions()
     {
         using var backend = new ScratchBackend();
-        var job = ScratchBackend.Job("IRepository", "Repository", "Configuration");
+        var job = ScratchBackend.Job("IRepository", "Repository", "Configuration",
+            "CreateCommand", "CreateHandler", "UpdateCommand", "UpdateHandler");
         var models = job["models"]!.AsArray();
         models.Clear();
-        (string Feature, string Aggregate, bool UseAlias)[] cases =
+        (string Feature, string Aggregate, bool UsePersistenceAlias, bool UseHandlerAlias)[] cases =
         [
-            ("Warehouses", "Warehouse", false),
-            ("Contexts", "DbContext", false),
-            ("Modules", "Module", true),
-            ("Files", "File", true),
-            ("Inventory", "Inventory", true),
-            ("Persistences", "Persistence", true)
+            ("Warehouses", "Warehouse", false, false),
+            ("Contexts", "DbContext", false, false),
+            ("Modules", "Module", true, true),
+            ("Files", "File", true, true),
+            ("Inventory", "Inventory", true, true),
+            ("Persistences", "Persistence", true, false)
         ];
-        foreach (var (feature, aggregate, _) in cases)
+        foreach (var (feature, aggregate, _, _) in cases)
         {
             if (aggregate != "Warehouse")
             {
@@ -145,13 +156,19 @@ public sealed class GenerationTests
 
         var files = await backend.RunAsync(job);
 
-        foreach (var (feature, aggregate, useAlias) in cases)
+        foreach (var (feature, aggregate, usePersistenceAlias, useHandlerAlias) in cases)
         {
             var repository = files.Single(file => Path.GetFileName(file.Path) == $"{feature}Repository.cs");
             var configuration = files.Single(file => Path.GetFileName(file.Path) == $"{aggregate}Configuration.cs");
+            var createHandler = files.Single(file => Path.GetFileName(file.Path) == $"Create{aggregate}Handler.cs");
+            var updateHandler = files.Single(file => Path.GetFileName(file.Path) == $"Update{aggregate}Handler.cs");
             var source = backend.Read(repository.Path);
             var configurationSource = backend.Read(configuration.Path);
-            if (useAlias)
+            var createSource = backend.Read(createHandler.Path);
+            var updateSource = backend.Read(updateHandler.Path);
+            createSource.ShouldNotContain("global::");
+            updateSource.ShouldNotContain("global::");
+            if (usePersistenceAlias)
             {
                 source.ShouldContain($"using DomainAggregate = {ScratchBackend.ModuleName}.Domain.{feature}.{aggregate};");
                 source.ShouldContain($"EfRepository<ModuleWriteDbContext, {aggregate}Id, DomainAggregate>");
@@ -165,9 +182,101 @@ public sealed class GenerationTests
                 configurationSource.ShouldNotContain("using DomainAggregate");
                 configurationSource.ShouldContain($"AuditableEntityConfiguration<{aggregate}>");
             }
+
+            if (useHandlerAlias)
+            {
+                createSource.ShouldContain($"using DomainAggregate = {ScratchBackend.ModuleName}.Domain.{feature}.{aggregate};");
+                createSource.ShouldContain("DomainAggregate.Create(");
+                updateSource.ShouldContain(".WithField(typeof(DomainAggregate).Name)");
+            }
+            else
+            {
+                createSource.ShouldNotContain("using DomainAggregate");
+                createSource.ShouldContain($"{aggregate}.Create(");
+                updateSource.ShouldContain($".WithField(nameof({aggregate}))");
+            }
         }
 
         await backend.BuildLayerAsync("Infrastructure");
+    }
+
+    [Fact(DisplayName = "Compile write handlers with aliases for duplicate value object and child identifier names")]
+    public async Task AliasesConflictingWriteHandlerTypes()
+    {
+        using var backend = new ScratchBackend();
+        backend.Write($"{ScratchBackend.DomainDirectory}/Warehouses/Warehouse.cs", """
+            namespace Organization.Product.Module.Domain.Warehouses;
+
+            public sealed class Warehouse : AggregateRoot<WarehouseId>
+            {
+                private Warehouse(WarehouseId id) : base(id) { }
+
+                public Collision.First.Amount First { get; private set; } = default!;
+                public Collision.Second.Amount Second { get; private set; } = default!;
+                public Collision.Threading.Counter Count { get; private set; } = default!;
+                public Measure? Measure { get; private set; }
+
+                public static Result<Warehouse> Create(
+                    Collision.First.Amount first,
+                    Collision.Second.Amount second,
+                    Collision.Threading.Counter count,
+                    Measure? measure) =>
+                    Result.Success(new Warehouse(WarehouseId.New())
+                        { First = first, Second = second, Count = count, Measure = measure });
+            }
+            """);
+        backend.Write($"{ScratchBackend.DomainDirectory}/Warehouses/Measure.cs", """
+            public readonly record struct Measure(int Value)
+            {
+                public static Result<Measure?> Create(int? value) =>
+                    Result.Success<Measure?>(value is { } number ? new Measure(number) : null);
+            }
+            """);
+        foreach (var (nameSpace, name) in new[]
+                 {
+                     ("Collision.First", "Amount"), ("Collision.Second", "Amount"), ("Collision.Threading", "Counter")
+                 })
+        {
+            backend.Write($"{ScratchBackend.DomainDirectory}/Warehouses/{nameSpace}.{name}.cs", $$"""
+                namespace {{nameSpace}};
+
+                public sealed record {{name}}(int Value)
+                {
+                    public static Result<{{name}}> Create(int value) => Result.Success(new {{name}}(value));
+                }
+                """);
+        }
+
+        backend.Write($"{ScratchBackend.DomainDirectory}/Warehouses/Task.cs", "namespace Collision.Threading; public sealed class Task;");
+        backend.Write($"{ScratchBackend.DomainDirectory}/Warehouses/Error.cs", "namespace Collision.First; internal sealed class Error;");
+        const string childNamespace = ScratchBackend.ModuleName + ".Domain.Products.Entities.ProductVariants";
+        const string valueObjects = ScratchBackend.ModuleName + ".Domain.Products.ValueObjects";
+        backend.Write($"{ScratchBackend.DomainDirectory}/Products/ValueObjects/ProductVariantId.cs",
+            $"namespace {valueObjects}; public sealed class ProductVariantId;");
+        var productPath = $"{ScratchBackend.DomainDirectory}/Products/Product.cs";
+        backend.Write(productPath, backend.Read(productPath)
+            .Replace("ProductVariantId", $"global::{childNamespace}.ProductVariantId", StringComparison.Ordinal));
+
+        var warehouseJob = ScratchBackend.Job("IRepository", "CreateCommand", "CreateHandler");
+        var warehouse = warehouseJob["models"]![0]!.AsObject();
+        warehouse["aggregate"] = $"{ScratchBackend.ModuleName}.Domain.Warehouses.Warehouse";
+        warehouse["route"] = "warehouses";
+        warehouse["detailsFields"] = new JsonArray("Id");
+        warehouse["listFields"] = new JsonArray("Id");
+        var productJob = ScratchBackend.Job("IRepository", "ChildUpdateCommand", "ChildUpdateHandler");
+
+        var files = await backend.RunAsync(warehouseJob, productJob);
+        var create = backend.Read(files.Single(file => Path.GetFileName(file.Path) == "CreateWarehouseHandler.cs").Path);
+        create.ShouldContain("using DomainAmount = Collision.First.Amount;");
+        create.ShouldContain("using DomainAmount2 = Collision.Second.Amount;");
+        create.ShouldContain("using DomainCounter = Collision.Threading.Counter;");
+        create.ShouldNotContain("using Collision.Threading;");
+        create.ShouldContain("Measure.Create(measureInput)");
+        var update = backend.Read(files.Single(file => Path.GetFileName(file.Path) == "UpdateProductVariantHandler.cs").Path);
+        update.ShouldContain($"using DomainProductVariantId = {childNamespace}.ProductVariantId;");
+        update.ShouldContain("DomainProductVariantId.Create(command.Id)");
+
+        await backend.BuildLayerAsync("Application");
     }
 
     [Theory(DisplayName = "Choose the aggregate reference for EF child configuration from both domain namespaces")]

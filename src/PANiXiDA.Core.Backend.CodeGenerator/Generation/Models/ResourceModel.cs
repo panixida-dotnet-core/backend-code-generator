@@ -44,6 +44,10 @@ internal sealed record ResourceModel(
 
     public bool HasFilterValidator { get; init; }
 
+    public WriteHandlerTypes? CreateHandlerTypes { get; init; }
+
+    public WriteHandlerTypes? UpdateHandlerTypes { get; init; }
+
     public IReadOnlyList<ResourceModel> ChildReadContracts { get; init; } = [];
 
     public CodeField[] SearchFields => [.. ListFields.Where(item => item.Type is "string" or "string?")];

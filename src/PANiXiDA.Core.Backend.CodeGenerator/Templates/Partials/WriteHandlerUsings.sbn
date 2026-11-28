@@ -1,0 +1,4 @@
+{{ for imported_namespace in handler.imports }}using {{ imported_namespace }};
+{{ end }}{{ if handler.aliases.size > 0 }}
+{{ for alias in handler.aliases }}using {{ alias }};
+{{ end }}{{ end -}}
