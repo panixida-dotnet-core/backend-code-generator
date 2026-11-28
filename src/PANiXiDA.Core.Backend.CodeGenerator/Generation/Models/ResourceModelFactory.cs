@@ -37,8 +37,7 @@ internal static class ResourceModelFactory
 
         return MakeModel(
             target,
-            aggregate,
-            id,
+            (aggregate, id, null),
             settings.Route,
             (fields,
                 create is null ? [] : CodeFieldFactory.BindParameters(create, fields, nullability),
@@ -113,25 +112,22 @@ internal static class ResourceModelFactory
             settings.DeleteMethod);
         return MakeModel(
             target,
-            entity,
-            id,
+            (entity, id, parentId),
             $"{parentRoute}/{{{routeId.ToLowerInvariant()}:guid}}/{settings.Route}",
             (fields, createFields, updateFields),
             (settings.DetailsFields, settings.ListFields),
-            child,
-            parentId);
+            child);
     }
 
     private static ResourceModel MakeModel(
         ResourceTarget target,
-        Type resource,
-        Type id,
+        (Type Resource, Type Id, Type? ParentId) types,
         string route,
         (CodeField[] All, CodeField[] Create, CodeField[] Update) fields,
         (IReadOnlyList<string> Details, IReadOnlyList<string> List) projections,
-        ChildModel? child = null,
-        Type? parentId = null)
+        ChildModel? child = null)
     {
+        var (resource, id, parentId) = types;
         var readableFields = fields.All
             .Prepend(new CodeField(DomainTypeInspector.IdPropertyName, nameof(Guid), false, null, null, false))
             .ToArray();

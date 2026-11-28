@@ -1,6 +1,5 @@
 {{ handler = model.update_handler_types
    include "WriteHandlerUsings.sbn" }}
-
 namespace {{ model.module }}.Application.{{ model.feature }}.Write.Update;
 
 public sealed class Update{{ model.resource }}Handler(I{{ model.aggregate_feature }}Repository {{ model.write_repository_parameter }})

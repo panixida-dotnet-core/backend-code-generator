@@ -1,6 +1,5 @@
 {{ handler = model.create_handler_types
    include "WriteHandlerUsings.sbn" }}
-
 namespace {{ model.module }}.Application.{{ model.feature }}.Write.Create;
 
 public sealed class Create{{ model.resource }}Handler(I{{ model.aggregate_feature }}Repository {{ model.write_repository_parameter }})

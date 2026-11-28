@@ -35,6 +35,7 @@ public sealed class GenerationTests
             aggregateSource.ShouldContain($"using {ScratchBackend.ModuleName}.Domain.Products.ValueObjects;");
             aggregateSource.ShouldContain("var nameResult = ProductName.Create(command.Name);");
             aggregateSource.ShouldNotContain("global::");
+            aggregateSource.ShouldContain(";\n\nnamespace ");
             aggregateSource.ShouldContain(
                 "Result.Combine(\n            nameResult,\n            kindResult,\n            descriptionResult ?? Result.Success(),\n"
                 + "            listPriceResult ?? Result.Success());");
@@ -43,6 +44,7 @@ public sealed class GenerationTests
             childSource.ShouldContain("var parentIdResult = ProductId.Create(command.ParentId);");
             childSource.ShouldContain("var skuResult = ProductSku.Create(command.Sku);");
             childSource.ShouldNotContain("global::");
+            childSource.ShouldContain(";\n\nnamespace ");
             childSource.ShouldNotContain("using DomainAggregate");
             childSource.ShouldContain("Result.Combine(\n            skuResult,\n            priceResult,\n            stockResult);");
             childSource.ShouldContain("Error.Validation(\"Price is required.\")");

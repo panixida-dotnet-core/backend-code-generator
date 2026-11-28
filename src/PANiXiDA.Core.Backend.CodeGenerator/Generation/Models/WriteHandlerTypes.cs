@@ -91,9 +91,11 @@ internal sealed record WriteHandlerTypes(
     private static string ReserveAlias(string prefix, HashSet<string> usedNames)
     {
         var alias = prefix;
-        for (var suffix = 2; !usedNames.Add(alias); suffix++)
+        var suffix = 2;
+        while (!usedNames.Add(alias))
         {
             alias = $"{prefix}{suffix}";
+            suffix++;
         }
 
         return alias;
