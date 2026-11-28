@@ -1,0 +1,18 @@
+    public static IQueryable<{{ dto_name }}> ProjectTo(
+        IQueryable<{{ model.read_db_resource }}ReadDbModel> query)
+    {
+        return query{{ if model.child }}.SelectMany(parent => parent.{{ model.child.collection }}){{ end }}
+            .Select(item => new {{ dto_name }}
+            {
+{{ for item in fields }}{{ if item.composite }}                {{ item.name }} = {{ if item.optional }}item.{{ item.name }} == null
+                    ? null
+                    : {{ end }}ReadValue<{{ dto_name }}.{{ item.name }}Value>(item.{{ item.name }}){{ else }}                {{ item.name }} = item.{{ item.name }}{{ end }}{{ if !for.last }},{{ end }}
+{{ end }}            });
+    }{{ if has_compound }}
+
+    private static TValue ReadValue<TValue>(string json)
+        where TValue : class
+    {
+        var value = JsonSerializer.Deserialize<TValue>(json);
+        return value ?? throw new InvalidOperationException("The stored value must be a JSON object.");
+    }{{ end }}{{ "" -}}

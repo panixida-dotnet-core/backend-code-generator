@@ -1,0 +1,52 @@
+{{ handler = model.create_handler_types
+   async_handler = model.child != null
+   include "WriteHandlerUsings.sbn" }}
+namespace {{ model.module }}.Application.{{ model.feature }}.Write.Create;
+
+public sealed class Create{{ model.resource }}Handler(I{{ model.aggregate_feature }}Repository {{ model.write_repository_parameter }})
+    : ICommandHandler<Create{{ model.resource }}Command, Result<Guid>>{{ if model.child }}, IRequireTransaction{{ end }}
+{
+    public {{ if model.child }}async {{ end }}Task<Result<Guid>> HandleAsync(
+        Create{{ model.resource }}Command command,
+        CancellationToken cancellationToken)
+    {
+        {{~
+            fields = model.create_fields
+            result_name = model.create_result_variable
+            if model.child
+                failure = "Result.Failure<Guid>"
+                with_id = false
+                parent_id_type = handler.parent_id_type
+                include "LoadParent.sbn"
+                fail_start = "Result.Failure<Guid>("
+                fail_end = ")"
+                factory = model.aggregate_variable + "." + model.child.create_method
+            else
+                fail_start = "Task.FromResult(Result.Failure<Guid>("
+                fail_end = "))"
+                factory = handler.aggregate_type + ".Create"
+            end
+            include "BindDomainValues.sbn"
+        ~}}
+        var {{ result_name }} = {{ factory }}(
+        {{- for field in fields }}
+            {{ csharp_argument field.parameter_name async_handler }}: {{ field.domain_argument }}{{ if !for.last }},{{ end -}}
+        {{ end -}}
+        );
+
+        {{~ if model.child ~}}
+        return {{ result_name }}.IsSuccess
+            ? Result.Success({{ result_name }}.Value.Value)
+            : Result.Failure<Guid>({{ result_name }}.Errors);
+        {{~ else ~}}
+        if ({{ result_name }}.IsFailure)
+        {
+            return Task.FromResult(Result.Failure<Guid>({{ result_name }}.Errors));
+        }
+
+        {{ model.write_repository_parameter }}.Add({{ result_name }}.Value);
+
+        return Task.FromResult(Result.Success({{ result_name }}.Value.Id.Value));
+        {{~ end ~}}
+    }
+}

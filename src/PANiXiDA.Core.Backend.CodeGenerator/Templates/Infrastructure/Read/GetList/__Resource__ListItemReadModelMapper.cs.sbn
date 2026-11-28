@@ -1,0 +1,20 @@
+{{ if model.has_compound_list }}using System.Text.Json;
+
+{{ end }}using {{ model.module }}.Application.{{ model.read_feature }}.Read.GetList;
+using {{ model.module }}.Infrastructure.Persistence.Features.{{ model.read_feature }}.Read.DbModels;
+
+{{ if !model.has_compound_list && !model.child }}using Riok.Mapperly.Abstractions;
+
+{{ end }}namespace {{ model.module }}.Infrastructure.Persistence.Features.{{ model.read_feature }}.Read.GetList;
+
+{{ if !model.has_compound_list && !model.child }}[Mapper(RequiredMappingStrategy = RequiredMappingStrategy.Target)]
+{{ end }}internal sealed {{ if !model.has_compound_list && !model.child }}partial {{ end }}class {{ model.resource }}ListItemReadModelMapper
+    : IReadModelMapper<Guid, {{ model.read_db_resource }}ReadDbModel, {{ model.resource }}ListItemReadModel>
+{
+{{ if model.has_compound_list || model.child }}{{ fields = model.list_fields
+   has_compound = model.has_compound_list
+   dto_name = model.resource + "ListItemReadModel"
+   include "ReadCompoundProjection.sbn" }}
+{{ else }}    public static partial IQueryable<{{ model.resource }}ListItemReadModel> ProjectTo(
+        IQueryable<{{ model.resource }}ReadDbModel> query);
+{{ end }}}

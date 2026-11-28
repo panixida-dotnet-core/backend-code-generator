@@ -1,0 +1,6 @@
+{{ for field in model.search_fields }}{{ indent }}{{ if !for.first }}    || {{ end }}(containsPatternCharacters
+{{ indent }}        ? (item.{{ field.name }}{{ if field.optional }} ?? string.Empty{{ end }}).ToLower().Contains(literal)
+{{ indent }}        : EF.Functions.ILike(
+{{ indent }}            matchExpression: item.{{ field.name }}{{ if field.optional }} ?? string.Empty{{ end }},
+{{ indent }}            pattern: $"%{search.Trim()}%")){{ if !for.last }}
+{{ end }}{{ end -}}

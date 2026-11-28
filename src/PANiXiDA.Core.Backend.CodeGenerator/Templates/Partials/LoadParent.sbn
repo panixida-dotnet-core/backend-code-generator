@@ -1,0 +1,26 @@
+        var parentIdResult = {{ parent_id_type }}.Create(command.ParentId);
+        if (parentIdResult.IsFailure)
+        {
+            return {{ failure }}(parentIdResult.Errors);
+        }
+
+        var {{ model.aggregate_variable }} = await {{ model.write_repository_parameter }}.GetByIdAsync(parentIdResult.Value, cancellationToken);
+        if ({{ model.aggregate_variable }} is null)
+        {
+            return {{ failure }}(
+                Error.NotFound($"{{ model.child.parent_resource }} with id '{command.ParentId}' was not found."));
+        }
+
+{{ if with_id }}        var idResult = {{ id_type }}.Create(command.Id);
+        if (idResult.IsFailure)
+        {
+            return {{ failure }}(idResult.Errors);
+        }
+
+        if (!{{ model.aggregate_variable }}.{{ model.child.collection }}.Any(item => item.Id.Equals(idResult.Value)))
+        {
+            return {{ failure }}(
+                Error.NotFound($"{{ model.resource }} with id '{command.Id}' was not found."));
+        }
+
+{{ end -}}

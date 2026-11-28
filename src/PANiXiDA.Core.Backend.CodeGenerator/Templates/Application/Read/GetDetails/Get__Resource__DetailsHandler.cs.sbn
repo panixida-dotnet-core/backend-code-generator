@@ -1,0 +1,25 @@
+using {{ model.module }}.Application.{{ model.read_feature }}.Abstractions;
+
+namespace {{ model.module }}.Application.{{ model.read_feature }}.Read.GetDetails;
+
+public sealed class Get{{ model.resource }}DetailsHandler(
+    I{{ model.read_feature }}ReadRepository {{ model.read_repository_parameter }})
+    : IQueryHandler<Get{{ model.resource }}DetailsQuery, Result<{{ model.resource }}DetailsReadModel>>
+{
+    public async Task<Result<{{ model.resource }}DetailsReadModel>> HandleAsync(
+        Get{{ model.resource }}DetailsQuery query,
+        CancellationToken cancellationToken)
+    {
+        var {{ model.details_variable }} = await {{ model.read_repository_parameter }}.{{ if model.child }}Get{{ model.child.collection }}ItemByIdAsync{{ else }}GetByIdAsync{{ end }}(
+{{ if model.child }}            parentId: query.ParentId,
+{{ end }}            id: query.Id,
+            cancellationToken: cancellationToken);
+        if ({{ model.details_variable }} is null)
+        {
+            return Result.Failure<{{ model.resource }}DetailsReadModel>(
+                Error.NotFound($"{{ model.resource }} with id '{query.Id}' was not found."));
+        }
+
+        return Result.Success({{ model.details_variable }});
+    }
+}

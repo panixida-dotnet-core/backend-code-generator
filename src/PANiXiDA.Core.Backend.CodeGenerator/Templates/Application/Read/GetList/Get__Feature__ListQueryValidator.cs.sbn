@@ -1,0 +1,23 @@
+{{ if model.has_search_filter && model.has_filter_validator }}using {{ model.module }}.Application.{{ model.feature }}.Common.Filters;
+
+{{ end }}namespace {{ model.module }}.Application.{{ model.read_feature }}.Read.GetList;
+
+public sealed class Get{{ model.feature }}ListQueryValidator : AbstractValidator<Get{{ model.feature }}ListQuery>
+{
+    public Get{{ model.feature }}ListQueryValidator()
+    {
+{{ if model.child }}        RuleFor(query => query.ParentId).NotEmpty();
+
+{{ end }}{{ if model.has_search_filter }}        RuleFor(query => query.Filter)
+            .NotNull(){{ if model.has_filter_validator }}
+            .SetValidator(new {{ model.feature }}FilterValidator()){{ end }};
+
+{{ end }}        RuleFor(query => query.PaginationParameters)
+            .NotNull()
+            .SetValidator(new PaginationParametersValidator());
+
+        RuleFor(query => query.SortingParameters)
+            .NotNull()
+            .SetValidator(new {{ model.resource }}ListItemReadModelSortingValidator());
+    }
+}

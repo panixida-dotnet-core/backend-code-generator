@@ -1,0 +1,17 @@
+namespace PANiXiDA.Core.Backend.CodeGenerator.Generation.Models;
+
+internal sealed record ChildModel(
+    string ParentDomain,
+    string ParentFeature,
+    string ParentResource,
+    string ParentId,
+    string RouteId,
+    string Collection,
+    string Entity,
+    bool HasConflictingDomainImports,
+    string Table,
+    IReadOnlyList<CodeField> ParentRequiredFields,
+    string? CreateMethod,
+    string? UpdateMethod,
+    string? UpdateIdParameter,
+    string? DeleteMethod);

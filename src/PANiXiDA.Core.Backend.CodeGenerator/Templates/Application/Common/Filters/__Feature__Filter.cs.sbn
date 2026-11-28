@@ -1,0 +1,3 @@
+namespace {{ model.module }}.Application.{{ model.feature }}.Common.Filters;
+
+public sealed record {{ model.feature }}Filter{{ if model.search_fields.size > 0 }}(string? Search = null){{ end }} : IFilter;

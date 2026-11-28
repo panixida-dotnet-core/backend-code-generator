@@ -1,0 +1,5 @@
+using Microsoft.AspNetCore.Mvc;
+
+namespace {{ model.module }}.Presentation.Features.{{ model.feature }}.Read.GetList;
+
+public sealed record Get{{ model.feature }}Request([FromQuery(Name = "search")] string? Search = null);

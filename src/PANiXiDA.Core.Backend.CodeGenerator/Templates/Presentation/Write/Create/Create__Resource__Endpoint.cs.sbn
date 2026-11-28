@@ -1,0 +1,41 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+
+{{ if model.has_details_endpoint }}using {{ model.module }}.Presentation.Features.{{ model.feature }}.Read.GetDetails;
+
+{{ end }}namespace {{ model.module }}.Presentation.Features.{{ model.feature }}.Write.Create;
+
+internal sealed class Create{{ model.resource }}Endpoint : IEndpoint<{{ model.feature }}Endpoints>
+{
+    public string Route { get; } = "/";
+    public string Name { get; } = "Create{{ model.resource }}";
+    public string Summary { get; } = "Create {{ model.resource }}";
+
+    public void Map(EndpointMapBuilder builder)
+    {
+        builder.MapPost(builder.Route, HandleAsync)
+            .Produces<Create{{ model.resource }}Response>(StatusCodes.Status201Created)
+            .ProducesValidationProblem(StatusCodes.Status400BadRequest){{ if model.child }}
+            .ProducesProblem(StatusCodes.Status404NotFound){{ end }};
+    }
+
+    private static async Task<IResult> HandleAsync(
+{{ if model.child }}        Guid {{ model.child.route_id }},
+{{ end }}        Create{{ model.resource }}Request request,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.SendAsync(
+            Create{{ model.resource }}Mapper.ToCommand(request: request{{ if model.child }}, parentId: {{ model.child.route_id }}{{ end }}),
+            cancellationToken);
+
+        return result.ToHttpResult(onSuccess: createdId =>
+{{ if model.has_details_endpoint }}            TypedResults.CreatedAtRoute(
+                value: Create{{ model.resource }}Mapper.ToResponse(id: createdId),
+                routeName: new Get{{ model.resource }}DetailsEndpoint().Name,
+                routeValues: new { {{ if model.child }}{{ model.child.route_id }}, {{ end }}id = createdId }));
+{{ else }}            TypedResults.Created(
+                uri: (string?)null,
+                value: Create{{ model.resource }}Mapper.ToResponse(id: createdId)));
+{{ end }}    }
+}

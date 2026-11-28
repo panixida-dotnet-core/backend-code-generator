@@ -1,0 +1,19 @@
+using {{ model.module }}.Application.{{ model.read_feature }}.Read.GetList;
+
+using Riok.Mapperly.Abstractions;
+
+namespace {{ model.module }}.Presentation.Features.{{ model.feature }}.Read.GetList;
+
+[Mapper(IncludedConstructors = MemberVisibility.All)]
+internal static partial class Get{{ model.feature }}ListMapper
+{
+    [MapPropertyFromSource(nameof(Get{{ model.feature }}ListQuery.{{ if model.has_search_filter }}Filter{{ else }}PaginationParameters{{ end }}))]
+    internal static partial Get{{ model.feature }}ListQuery ToQuery(
+{{ if model.has_search_filter }}        Get{{ model.feature }}Request request,
+{{ end }}        PaginationParameters paginationParameters,
+        SortingParameters sortingParameters{{ if model.child }},
+        Guid parentId{{ end }});
+
+    internal static partial PaginationResult<{{ model.resource }}ListItemResponse> ToResponse(
+        PaginationResult<{{ model.resource }}ListItemReadModel> page);
+}

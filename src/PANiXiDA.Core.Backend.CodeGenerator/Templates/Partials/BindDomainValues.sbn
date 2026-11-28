@@ -1,0 +1,20 @@
+{{~
+    domain_fields = []
+    for item in fields
+        if item.binds_domain_value
+            domain_fields = domain_fields | array.add item
+        end
+    end
+~}}
+{{ if domain_fields.size > 0 }}{{ for item in domain_fields }}{{ domain_type = handler.domain_types[item.value_object] }}{{ if item.composite }}{{ include "BindCompoundValues.sbn" }}{{ else }}        var {{ item.local_name }}Result = {{ domain_type }}.Create(command.{{ item.name }});
+{{ end }}{{ end }}
+        var validation = Result.Combine(
+{{ for item in domain_fields }}            {{ item.local_name }}Result{{ if !for.last }},
+{{ end }}{{ end }});
+
+        if (validation.IsFailure)
+        {
+            return {{ fail_start }}errors: validation.Errors{{ fail_end }};
+        }
+
+{{ end -}}

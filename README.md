@@ -1,295 +1,143 @@
-## What to do after creating a repository from this template
+# PANiXiDA.Core.Backend.CodeGenerator
 
-### 1. Rename repository metadata
-- change repository name
-- change solution / project names
-- change package ID
-- change assembly name
-- change repository URLs
-- change ProjectReference in test project
-- update the template smoke test namespace and expected assembly name
-
-### 2. Update package metadata
-- description
-- tags
-
-### 3. Update documentation
-- replace this template README with the project README
-- fill all placeholder sections
-- update badges
-- update installation instructions
-- add real usage examples
-
-### 4. Configure GitHub repository
-- check repository visibility
-- configure default branch
-- configure branch protection rules
-- configure Issues / Discussions if needed
-- configure repository description, topics and website
-- register the repository in the shared SonarQube inventory
-
-### 5. Prepare the first release
-- update versioning configuration pathFilters in version.json
-- verify NuGet metadata
-- verify README and icon inside the package
-- publish the first package version
-- the version is updated automatically based on the commit history
-
----
-
-# Universal README template for the NuGet package
-
-# <PackageName>
-
-`<PackageName>` is a .NET library for <short purpose>.
-
-It is designed for <target audience> who need <main value / main scenario>.
+`PANiXiDA.Core.Backend.CodeGenerator` is a .NET library that scaffolds editable C# CRUD files from domain aggregates and their child entity collections.
 
 ## Status
 
-[![CI](https://github.com/<OWNER>/<REPOSITORY>/actions/workflows/ci.yml/badge.svg)](https://github.com/<OWNER>/<REPOSITORY>/actions/workflows/ci.yml)
-[![NuGet](https://img.shields.io/nuget/v/<PACKAGE_ID>.svg)](https://www.nuget.org/packages/<PACKAGE_ID>)
-[![NuGet downloads](https://img.shields.io/nuget/dt/<PACKAGE_ID>.svg)](https://www.nuget.org/packages/<PACKAGE_ID>)
+[![CI](https://github.com/panixida-dotnet-core/backend-code-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/panixida-dotnet-core/backend-code-generator/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/PANiXiDA.Core.Backend.CodeGenerator.svg)](https://www.nuget.org/packages/PANiXiDA.Core.Backend.CodeGenerator)
+[![NuGet downloads](https://img.shields.io/nuget/dt/PANiXiDA.Core.Backend.CodeGenerator.svg)](https://www.nuget.org/packages/PANiXiDA.Core.Backend.CodeGenerator)
 [![Target Framework](https://img.shields.io/badge/target-net10.0-512BD4)](https://dotnet.microsoft.com/)
-[![License](https://img.shields.io/github/license/<OWNER>/<REPOSITORY>.svg)](LICENSE)
-
-## Overview
-
-Describe:
-
-- what problem this package solves;
-- why it exists;
-- where it fits in the system or ecosystem;
-- how it differs from alternatives, if that matters.
-
-Keep this section short and practical.
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 ## Features
 
-- Feature 1
-- Feature 2
-- Feature 3
-- Feature 4
-- Feature 5
+- Generates C# commands, queries, handlers, validation, EF Core mappings, and ASP.NET Core endpoints.
+- Supports explicitly configured child entity collections with parent-scoped mutations and paginated queries.
+- Maps scalar properties, enumerations, single-value objects, and compound value objects from the domain model.
+- Ships Scriban templates and shared partials inside the library. Jobs can replace individual templates and output directories.
+- Supports multiple jobs, selected artifacts, explicit overwrite, and deletion of existing files at the selected output paths.
+
+## Requirements
+
+- .NET 10 SDK.
+- A backend repository with PANiXiDA.Core domain conventions and the corresponding Application, Infrastructure, and Presentation projects for the artifacts you select.
+
+## Installation
+
+Add the generator and JSON configuration provider to the console project in `tools`.
+
+```bash
+dotnet add tools/Acme.Store.CodeGenerator package PANiXiDA.Core.Backend.CodeGenerator
+dotnet add tools/Acme.Store.CodeGenerator package Microsoft.Extensions.Configuration.Json --version 10.0.14
+```
 
 ## Quick Start
 
-### Requirements
+From the backend repository root, run the console project after adding this code to its `Program.cs`.
 
-- .NET 10 SDK
+```csharp
+using Microsoft.Extensions.Configuration;
 
-### Installation
+using PANiXiDA.Core.Backend.CodeGenerator;
+
+var configuration = new ConfigurationBuilder()
+    .SetBasePath(AppContext.BaseDirectory)
+    .AddJsonFile("appsettings.json")
+    .Build();
+
+var changes = await BackendCodeGenerator.GenerateAsync(configuration);
+
+foreach (var change in changes)
+{
+    Console.WriteLine($"{change.Action}: {change.Path}");
+}
+```
+
+Save the JSON configuration alongside the console project and copy it to the build output.
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="<PACKAGE_ID>" Version="..." />
+  <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
 </ItemGroup>
-````
-
-### Minimal import
-
-```csharp
-using <RootNamespace>;
 ```
 
-### First example
+The console project loads its own JSON file. The library reads `jobs` from the supplied `IConfiguration` and uses the current working directory as the backend repository root. Pass `repositoryRoot` explicitly when launching the tool from another directory.
 
-```csharp
-// Add a minimal example here
+```json
+{
+  "jobs": [
+    {
+      "pathToModels": "src/Modules/Catalog/Acme.Store.Catalog.Domain",
+      "models": [
+        {
+          "aggregate": "Acme.Store.Catalog.Domain.Products.Product",
+          "route": "products",
+          "detailsFields": ["Id", "Name"],
+          "listFields": ["Id", "Name"]
+        }
+      ],
+      "generatedFiles": ["CreateCommand", "UpdateCommand"],
+      "overwriteExisting": false,
+      "deleteGenerated": false
+    }
+  ]
+}
 ```
 
-## Usage
-
-### Basic usage
-
-```csharp
-// Add a basic example here
+```bash
+dotnet run --project tools/Acme.Store.CodeGenerator
 ```
 
-### Typical scenario
+The example generates two files. See the [full CRUD example](tests/PANiXiDA.Core.Backend.CodeGenerator.UnitTests/Fixtures/Backend/tools/Generator/appsettings.json) for the full artifact list and a `children` entry.
 
-```csharp
-// Add a realistic example here
-```
+## Model Conventions
 
-### Advanced scenario
-
-```csharp
-// Add an advanced example here if needed
-```
+- An aggregate derives from `AggregateRoot<TId>` and has a Guid-backed ID exposing `Value` and `Create(Guid)`. It provides a static `Create` returning `Result<TAggregate>` and an instance `Update` returning `Result`.
+- Method parameters bind to writable properties by name and input type. A private setter is supported. Use the domain types in aggregate and child methods. The generated handlers bind scalar request values to identifiers, enumerations, and value objects through their factories. For a compound value object, each factory parameter must match a readable scalar property by name, type, and nullability.
+- Create and update handlers call the value object factories and combine their errors with `Result.Combine` before invoking the aggregate. An optional value object requires a `Create` overload accepting the nullable value or all nullable components. The factory determines the result for missing input.
+- Both read projections include `Id`. Compound value objects render as nested DTOs and map to a `jsonb` column. The list query uses the standard read-model sorting validator. Sort by top-level scalar fields when the projection deserializes JSON in C#.
+- A child collection exposes entities deriving from `Entity<TId>`. Configure `collection`, `resource`, `route`, read projections, and the aggregate method names for the write artifacts you select. Create returns `Result<TChildId>`. Update and delete take the child ID first and return `Result`.
 
 ## Configuration
 
-Describe configuration only if the package actually requires it.
+| Setting | Behavior |
+| --- | --- |
+| `pathToModels` | Path to the Domain project directory or its `.Domain.csproj`, relative to the backend repository root. |
+| `models` | One or more aggregate configurations from that Domain project. |
+| `generatedFiles` | Explicit artifact names. Use `Child*` artifacts for entries in `children`. |
+| `templates` | Optional mapping from an artifact name or an embedded partial filename to a Scriban file within the repository. Relative paths are resolved from `templateBaseDirectory`, which defaults to the repository root when passing `IConfiguration`. |
+| `outputDirectory` | Optional mapping from an artifact name to a directory relative to the repository root. Supports `{Module}`, `{ModuleName}`, `{Feature}`, and `{Resource}`. |
+| `overwriteExisting` | Allows replacing selected files. Defaults to `false`. |
+| `deleteGenerated` | Deletes existing files at the selected output paths without building Domain. Defaults to `false`. |
 
-Possible topics:
+`deleteGenerated` uses the file names and directories resolved from the job, including `outputDirectory` overrides. It also deletes manually edited files at those paths and skips missing files.
 
-* environment variables;
-* `appsettings.json`;
-* feature flags;
-* external services;
-* secrets;
-* runtime prerequisites.
+For example, `"templates": { "CreateCommand": "Templates/MyCreate.sbn", "DtoRecord.sbn": "Templates/MyDto.sbn" }` overrides one artifact and one shared partial for the job. All other templates come from the package. Pass `templateBaseDirectory: "tools/Acme.Store.CodeGenerator"` to resolve the example overrides next to the tool project. The overload that takes a JSON path resolves relative overrides from that file's directory.
 
-If the package does not require runtime configuration, say so explicitly.
+Overrides of `LoadParent.sbn` and child write handlers use `model.aggregate_variable` for the loaded aggregate's local variable.
 
-## Project Structure
+Generated Create and Update handlers, write repositories, and EF configurations use the aggregate's short type name when it resolves unambiguously. They use `DomainAggregate` for known collisions, such as a `Product` type inside a module named `Organization.Product.Module` or a `File` type that conflicts with an SDK implicit using. A child configuration uses the parent aggregate and checks both domain namespaces before importing them. The `Repository` and `Configuration` templates can be overridden for additional project-specific imports.
 
-```text
-.
-├── src/
-│   └── <ProjectName>/
-├── tests/
-│   └── <ProjectName>.UnitTests/
-├── .editorconfig
-├── .gitattributes
-├── .gitignore
-├── Directory.Build.props
-├── Directory.Build.targets
-├── Directory.Packages.props
-├── global.json
-├── version.json
-├── LICENSE
-└── README.md
-```
+The generated read repository includes each method when its corresponding `DetailsReadModel` or `ListItemReadModel` is selected by any job for that resource, or already exists at its default or configured output path. The same rule applies to `Child*` read artifacts. Select the corresponding mapper and, for list queries, sorting artifact if those files do not already exist.
 
-### Main repository files
+The aggregate owns the read repository. `IReadRepository` declares the aggregate and child methods in one interface. `ChildReadRepository` implements collection-specific methods such as `GetVariantsItemByIdAsync` and `GetVariantsPageAsync` in a partial file of that repository. Include `IReadRepository`, `ReadRepository`, `ReadDbModel`, and the child artifacts when scaffolding a new aggregate with child reads. When adding child reads to an existing aggregate, regenerate or update its `IReadRepository`. Remove `ChildIReadRepository` from configurations using the former artifact and remove its obsolete generated files.
 
-* `src/` — source code
-* `tests/` — automated tests
-* `Directory.Build.props` — shared MSBuild settings
-* `Directory.Build.targets` — shared build / packaging settings
-* `Directory.Packages.props` — centralized package versions
-* `global.json` — SDK and tooling configuration
-* `version.json` — versioning configuration
-* `README.md` — package overview and usage documentation
+Child read use cases, projections, and mappers live under the aggregate feature. `ChildReadDbModel` maps an owned collection on the aggregate's EF read model to the same table as the write configuration. Child list methods use the aggregate query, read-model mapper, and sorting to paginate in the database. When regenerating child reads from an older scaffold, remove the former read files from the separate child feature folders.
+
+Select `Filter` and `FilterValidator` to generate the feature's `IFilter` record and FluentValidation validator under `Application/<Feature>/Common/Filters`. Use `ChildFilter` and `ChildFilterValidator` for a child feature. These artifacts can be generated independently of read operations.
+
+With a filter available, string fields in `listFields` enable the optional `search` query parameter. Select `GetRequest` or `ChildGetRequest` for the corresponding list with search. These artifacts generate request types such as `GetProductsRequest` and `GetProductVariantsRequest` for `[AsParameters]`. The list mapper maps the request to the query's filter. The repository matches a case-insensitive text fragment against any of the selected string fields before sorting and pagination. The default filter is empty if the list projection has no string fields. Regenerate the request, endpoint, and mapper together when updating an existing list with search. When enabling search, also regenerate the query, validator, handler, and both repository files together.
+
+Generated endpoint groups require authorization. When selecting `DeleteEndpoint` or `ChildDeleteEndpoint`, include the corresponding `DeleteMapper` or `ChildDeleteMapper`. Create endpoints use the details route when it exists and return HTTP 201 with the created response otherwise.
+
+Review the generated files before committing them to your backend repository.
 
 ## Development
 
-### Build
-
 ```bash
 dotnet restore
-dotnet build --configuration Release
-```
-
-### Format
-
-```bash
-dotnet format
-```
-
-### Test
-
-```bash
-dotnet test --configuration Release
-```
-
-### Pack
-
-```bash
-dotnet pack --configuration Release
-```
-
-### Continuous integration
-
-Every pull request and push to `main` runs formatting, tests, and mandatory
-SonarQube analysis. Publishing from `main` starts only after the SonarQube
-Quality Gate succeeds.
-
-### Full local validation
-
-```bash
-dotnet restore
-dotnet format
-dotnet build --configuration Release
-dotnet test --configuration Release
-dotnet pack --configuration Release
-```
-
-### Tooling and conventions
-
-This repository uses:
-
-* .NET 10
-* Nullable enabled
-* Implicit usings enabled
-* Central package management
-* GitHub Actions
-* SonarQube
-* Nerdbank.GitVersioning
-
-Add more items only if they are actually relevant for the repository.
-
-## API / Contracts / Examples
-
-Describe the public API surface here.
-
-Suggested structure:
-
-* core abstractions;
-* main entry points;
-* key extension methods;
-* important behavioral notes;
-* typical integration examples.
-
-## Roadmap / TODO
-
-Potential future improvements:
-
-* item 1;
-* item 2;
-* item 3.
-
-Remove this section if it does not provide value.
-
-## Contributing
-
-Contributions are welcome.
-
-### General rules
-
-* keep the public API intentional;
-* avoid unnecessary dependencies;
-* preserve repository conventions;
-* do not introduce breaking changes without review;
-* keep documentation updated.
-
-### Code style
-
-* follow the repository `.editorconfig`;
-* prefer readable and explicit code;
-* keep naming consistent with the existing codebase.
-
-### Tests
-
-* add or update tests for meaningful behavior changes;
-* cover both success and failure scenarios where applicable;
-* add regression tests for bug fixes.
-
-### Validation before completion
-
-Run:
-
-```bash
-dotnet restore
-dotnet format
+dotnet format --verify-no-changes
 dotnet build --configuration Release
 dotnet test --configuration Release
 ```
-
-## License
-
-This project is licensed under the <LicenseName> license.
-
-See the [LICENSE](LICENSE) file for details.
-
-## Maintainers / Contacts
-
-Maintained by <Author / Team / Organization>.
-
-For questions or improvements, use:
-
-* GitHub Issues
-* Pull Requests
-* GitHub Discussions, if enabled

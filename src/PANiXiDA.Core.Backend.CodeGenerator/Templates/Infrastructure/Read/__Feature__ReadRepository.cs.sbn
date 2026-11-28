@@ -1,0 +1,80 @@
+{{ if model.child && model.has_details_read_model || model.has_search_filter }}using Microsoft.EntityFrameworkCore;
+
+{{ end }}{{ if !model.child }}using {{ model.module }}.Application.{{ model.feature }}.Abstractions;
+{{ end }}{{ if model.has_search_filter }}using {{ model.module }}.Application.{{ model.feature }}.Common.Filters;
+{{ end }}{{ if model.has_details_read_model }}using {{ model.module }}.Application.{{ model.read_feature }}.Read.GetDetails;
+{{ end }}{{ if model.has_list_item_read_model }}using {{ model.module }}.Application.{{ model.read_feature }}.Read.GetList;
+{{ end }}{{ if !model.child }}using {{ model.module }}.Infrastructure.Persistence.Core;
+{{ end }}{{ if !model.child || model.has_search_filter }}using {{ model.module }}.Infrastructure.Persistence.Features.{{ model.read_feature }}.Read.DbModels;
+{{ end }}{{ if model.has_details_read_model }}using {{ model.module }}.Infrastructure.Persistence.Features.{{ model.read_feature }}.Read.GetDetails;
+{{ end }}{{ if model.has_list_item_read_model }}using {{ model.module }}.Infrastructure.Persistence.Features.{{ model.read_feature }}.Read.GetList;
+{{ end }}{{ if !model.child || model.has_details_read_model || model.has_list_item_read_model }}
+{{ end }}namespace {{ model.module }}.Infrastructure.Persistence.Features.{{ if model.child }}{{ model.child.parent_feature }}{{ else }}{{ model.feature }}{{ end }}.Read;
+
+public sealed partial class {{ if model.child }}{{ model.child.parent_feature }}{{ else }}{{ model.feature }}{{ end }}ReadRepository{{ if !model.child }}({{ model.module_name }}ReadDbContext dbContext) :
+    EfReadRepository<{{ model.module_name }}ReadDbContext, Guid, {{ model.resource }}ReadDbModel>(dbContext),
+    I{{ model.feature }}ReadRepository{{ end }}
+{
+{{ if model.has_details_read_model }}    public Task<{{ model.resource }}DetailsReadModel?> {{ if model.child }}Get{{ model.child.collection }}ItemByIdAsync{{ else }}GetByIdAsync{{ end }}(
+{{ if model.child }}        Guid parentId,
+{{ end }}        Guid id,
+        CancellationToken cancellationToken)
+    {
+{{ if model.child }}        var query = Query.Where(parent => parent.Id == parentId);
+        return {{ model.resource }}DetailsReadModelMapper.ProjectTo(query)
+            .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
+{{ else }}        return GetByIdAsync<{{ model.resource }}DetailsReadModel, {{ model.resource }}DetailsReadModelMapper>(
+            id,
+            cancellationToken);
+{{ end }}    }
+{{ end }}{{ if model.has_list_item_read_model }}{{ if model.has_details_read_model }}
+{{ end }}    public Task<PaginationResult<{{ model.resource }}ListItemReadModel>> {{ if model.child }}Get{{ model.child.collection }}PageAsync{{ else }}GetPagedListAsync{{ end }}(
+{{ if model.child }}        Guid parentId,
+{{ end }}{{ if model.has_search_filter }}        {{ model.feature }}Filter filter,
+{{ end }}        PaginationParameters paginationParameters,
+        SortingParameters sortingParameters,
+        CancellationToken cancellationToken)
+    {
+{{ if model.child }}        var query = Query.Where(parent => parent.Id == parentId);
+{{ if model.has_search_filter }}        query = ApplyFilter(query, filter);
+{{ end }}
+{{ else }}{{ if model.has_search_filter }}        var query = ApplyFilter(Query, filter);
+
+{{ end }}{{ end }}        return GetPagedResultAsync<
+            {{ model.resource }}ListItemReadModel,
+            {{ model.resource }}ListItemReadModelMapper,
+            {{ model.resource }}ListItemReadModelSorting>(
+                query: {{ if model.child || model.has_search_filter }}query{{ else }}Query{{ end }},
+                paginationParameters: paginationParameters,
+                sortingParameters: sortingParameters,
+                cancellationToken: cancellationToken);
+    }
+{{ end }}{{ if model.has_search_filter }}
+    private static IQueryable<{{ model.read_db_resource }}ReadDbModel> ApplyFilter(
+        IQueryable<{{ model.read_db_resource }}ReadDbModel> query,
+        {{ model.feature }}Filter filter)
+    {
+        if (string.IsNullOrWhiteSpace(filter.Search))
+        {
+            return query;
+        }
+
+        var search = filter.Search;
+        var containsPatternCharacters = search.Contains('%') || search.Contains('_') || search.Contains('\\');
+        var literal = search.Trim().ToLowerInvariant();
+
+{{ if model.child }}        return query.Select(parent => new {{ model.read_db_resource }}ReadDbModel
+        {
+            Id = parent.Id,
+{{ for field in model.child.parent_required_fields }}            {{ field.name }} = parent.{{ field.name }},
+{{ end }}            {{ model.child.collection }} = parent.{{ model.child.collection }}
+                .Where(item =>
+{{ indent = "                    "
+   include "SearchPredicate.sbn" }})
+                .ToList()
+        });
+{{ else }}        return query.Where(item =>
+{{ indent = "            "
+   include "SearchPredicate.sbn" }});
+{{ end }}    }
+{{ end }}}

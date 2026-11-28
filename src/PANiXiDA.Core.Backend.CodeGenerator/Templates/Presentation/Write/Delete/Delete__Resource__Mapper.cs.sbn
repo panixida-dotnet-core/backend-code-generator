@@ -1,0 +1,12 @@
+using {{ model.module }}.Application.{{ model.feature }}.Write.Delete;
+
+using Riok.Mapperly.Abstractions;
+
+namespace {{ model.module }}.Presentation.Features.{{ model.feature }}.Write.Delete;
+
+[Mapper]
+internal static partial class Delete{{ model.resource }}Mapper
+{
+{{ if model.child }}    [MapPropertyFromSource(nameof(Delete{{ model.resource }}Command.ParentId))]
+{{ end }}    internal static partial Delete{{ model.resource }}Command ToCommand({{ if model.child }}Guid parentId, {{ end }}Guid id);
+}
