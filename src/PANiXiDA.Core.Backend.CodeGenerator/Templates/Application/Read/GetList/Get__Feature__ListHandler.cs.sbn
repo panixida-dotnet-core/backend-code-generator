@@ -1,22 +1,21 @@
-{{ repository_feature = model.child ? model.child.parent_feature : model.feature
-   repository_name = (repository_feature | string.slice 0 1 | string.downcase) + (repository_feature | string.slice 1) + "ReadRepository" }}using {{ model.module }}.Application.{{ repository_feature }}.Abstractions;
+using {{ model.module }}.Application.{{ model.read_feature }}.Abstractions;
 
 namespace {{ model.module }}.Application.{{ model.read_feature }}.Read.GetList;
 
-public sealed class Get{{ model.feature }}ListHandler(I{{ repository_feature }}ReadRepository {{ repository_name }})
+public sealed class Get{{ model.feature }}ListHandler(I{{ model.read_feature }}ReadRepository {{ model.read_repository_parameter }})
     : IQueryHandler<Get{{ model.feature }}ListQuery, Result<PaginationResult<{{ model.resource }}ListItemReadModel>>>
 {
     public async Task<Result<PaginationResult<{{ model.resource }}ListItemReadModel>>> HandleAsync(
         Get{{ model.feature }}ListQuery query,
         CancellationToken cancellationToken)
     {
-{{ if model.child }}        if (!await {{ repository_name }}.ExistsByIdAsync(query.ParentId, cancellationToken))
+{{ if model.child }}        if (!await {{ model.read_repository_parameter }}.ExistsByIdAsync(query.ParentId, cancellationToken))
         {
             return Result.Failure<PaginationResult<{{ model.resource }}ListItemReadModel>>(
                 Error.NotFound($"{{ model.child.parent_resource }} with id '{query.ParentId}' was not found."));
         }
 
-{{ end }}        var items = await {{ repository_name }}.{{ if model.child }}Get{{ model.child.collection }}PageAsync{{ else }}GetPagedListAsync{{ end }}(
+{{ end }}        var items = await {{ model.read_repository_parameter }}.{{ if model.child }}Get{{ model.child.collection }}PageAsync{{ else }}GetPagedListAsync{{ end }}(
 {{ if model.child }}            parentId: query.ParentId,
 {{ end }}{{ if model.has_search_filter }}            filter: query.Filter,
 {{ end }}            paginationParameters: query.PaginationParameters,
