@@ -135,7 +135,11 @@ public sealed class ReadRepositoryTests
         var list = ScratchBackend.Job(
             "ListItemReadModel", "GetListQuery", "GetListQueryValidator",
             "Endpoints", "GetListEndpoint", "GetListMapper", "ListItemResponse");
-        if (!hasSearchFields)
+        if (hasSearchFields)
+        {
+            list["generatedFiles"]!.AsArray().Add("GetRequest");
+        }
+        else
         {
             filters["models"]![0]!["listFields"] = new JsonArray("Id");
             list["models"]![0]!["listFields"] = new JsonArray("Id");
@@ -157,7 +161,8 @@ public sealed class ReadRepositoryTests
         var mapper = listFiles.Single(file => Path.GetFileName(file.Path) == "GetProductsListMapper.cs");
         var mapperSource = backend.Read(mapper.Path);
         mapperSource.ShouldContain("partial GetProductsListQuery ToQuery(");
-        mapperSource.Contains("ToFilter(", StringComparison.Ordinal).ShouldBe(hasSearchFields);
+        mapperSource.Contains("GetProductsRequest request", StringComparison.Ordinal).ShouldBe(hasSearchFields);
+        mapperSource.ShouldContain(hasSearchFields ? "GetProductsListQuery.Filter" : "GetProductsListQuery.PaginationParameters");
         await backend.BuildLayerAsync("Presentation");
     }
 

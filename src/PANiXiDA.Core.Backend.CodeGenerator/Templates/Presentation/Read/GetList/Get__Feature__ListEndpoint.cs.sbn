@@ -19,7 +19,7 @@ internal sealed class Get{{ model.feature }}ListEndpoint : IEndpoint<{{ model.fe
 
     private static async Task<IResult> HandleAsync(
 {{ if model.child }}        Guid {{ model.child.route_id }},
-{{ end }}{{ if model.has_search_filter }}        string? search,
+{{ end }}{{ if model.has_search_filter }}        [AsParameters] Get{{ model.feature }}Request request,
 {{ end }}        [AsParameters] PaginationParameters paginationParameters,
         [AsParameters] SortingParameters sortingParameters,
         IMediator mediator,
@@ -27,10 +27,10 @@ internal sealed class Get{{ model.feature }}ListEndpoint : IEndpoint<{{ model.fe
     {
         var result = await mediator.QueryAsync(
             Get{{ model.feature }}ListMapper.ToQuery(
-                paginationParameters: paginationParameters,
+{{ if model.has_search_filter }}                request: request,
+{{ end }}                paginationParameters: paginationParameters,
                 sortingParameters: sortingParameters{{ if model.child }},
-                parentId: {{ model.child.route_id }}{{ end }}{{ if model.has_search_filter }},
-                filter: Get{{ model.feature }}ListMapper.ToFilter(search){{ end }}),
+                parentId: {{ model.child.route_id }}{{ end }}),
             cancellationToken);
 
         return result.ToHttpResult(onSuccess: page =>
