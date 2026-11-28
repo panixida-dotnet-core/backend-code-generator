@@ -8,6 +8,7 @@ internal sealed record ChildModel(
     string RouteId,
     string Collection,
     string Entity,
+    bool HasConflictingDomainImports,
     string Table,
     IReadOnlyList<CodeField> ParentRequiredFields,
     string? CreateMethod,

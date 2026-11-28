@@ -4,9 +4,9 @@ using PANiXiDA.Core.Backend.CodeGenerator.Generation.Domain;
 
 namespace PANiXiDA.Core.Backend.CodeGenerator.Generation.Models;
 
-internal static class WriteRepositoryNaming
+internal static class WriteAggregateNaming
 {
-    private static readonly HashSet<string> s_repositoryNamespaces =
+    private static readonly HashSet<string> s_persistenceNamespaces =
     [
         ModuleLayer.Domain, ModuleLayer.Application, ModuleLayer.Infrastructure,
         "Persistence", "Core", "DependencyInjection", "Features", "Read", "Write"
@@ -34,7 +34,7 @@ internal static class WriteRepositoryNaming
     {
         return aggregate == feature
             || module.Split('.').Contains(aggregate, StringComparer.Ordinal)
-            || s_repositoryNamespaces.Contains(aggregate)
+            || s_persistenceNamespaces.Contains(aggregate)
             || s_sdkTypeNames.Contains(aggregate);
     }
 }

@@ -112,7 +112,7 @@ The example generates two files. See the [full CRUD example](tests/PANiXiDA.Core
 
 For example, `"templates": { "CreateCommand": "Templates/MyCreate.sbn", "DtoRecord.sbn": "Templates/MyDto.sbn" }` overrides one artifact and one shared partial for the job. All other templates come from the package. Pass `templateBaseDirectory: "tools/Acme.Store.CodeGenerator"` to resolve the example overrides next to the tool project. The overload that takes a JSON path resolves relative overrides from that file's directory.
 
-The generated write repository normally uses the aggregate's short type name. It uses `DomainAggregate` for known collisions with module, feature, or persistence namespaces and with common framework types from the SDK implicit usings. The `Repository` template can be overridden for additional project-specific imports.
+Generated write repositories and EF configurations normally use the aggregate's short type name. They use `DomainAggregate` for known collisions with module, feature, or persistence namespaces and with common framework types from the SDK implicit usings. A child configuration uses the parent aggregate and checks both domain namespaces before importing them. The `Repository` and `Configuration` templates can be overridden for additional project-specific imports.
 
 The generated read repository includes each method when its corresponding `DetailsReadModel` or `ListItemReadModel` is selected by any job for that resource, or already exists at its default or configured output path. The same rule applies to `Child*` read artifacts. Select the corresponding mapper and, for list queries, sorting artifact if those files do not already exist.
 

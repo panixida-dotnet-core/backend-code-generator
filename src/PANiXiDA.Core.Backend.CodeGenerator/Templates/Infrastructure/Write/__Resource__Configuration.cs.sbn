@@ -1,28 +1,32 @@
-{{ if model.has_compound_fields }}using System.Text.Json;
+{{ use_alias = model.requires_write_aggregate_alias
+   aggregate_type = use_alias ? "DomainAggregate" : model.aggregate_resource }}{{ if model.has_compound_fields }}using System.Text.Json;
 
 {{ end }}using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-using {{ model.domain }};
+{{ if use_alias }}using {{ model.domain }};
 
-using DomainAggregate = global::{{ if model.child }}{{ model.child.parent_domain }}.{{ model.child.parent_resource }}{{ else }}{{ model.domain }}.{{ model.resource }}{{ end }};
+using DomainAggregate = {{ model.aggregate_domain }}.{{ model.aggregate_resource }};
 
-namespace {{ model.module }}.Infrastructure.Persistence.Features.{{ model.aggregate_feature }}.Write;
+{{ end }}namespace {{ model.module }}.Infrastructure.Persistence.Features.{{ model.aggregate_feature }}.Write;
 
-{{ if model.child }}internal sealed class {{ model.resource }}Configuration
-    : IEntityTypeConfiguration<DomainAggregate>
+{{ if !use_alias }}using {{ model.aggregate_domain }};
+{{ if model.aggregate_domain != model.domain }}using {{ model.domain }};
+{{ end }}
+{{ end }}{{ if model.child }}internal sealed class {{ model.resource }}Configuration
+    : IEntityTypeConfiguration<{{ aggregate_type }}>
 {
-    public void Configure(EntityTypeBuilder<DomainAggregate> builder)
+    public void Configure(EntityTypeBuilder<{{ aggregate_type }}> builder)
     {
         builder.OwnsMany(item => item.{{ model.child.collection }}, ConfigureChild);
     }
 
     private static void ConfigureChild(
-        OwnedNavigationBuilder<DomainAggregate, {{ model.child.entity }}> builder)
+        OwnedNavigationBuilder<{{ aggregate_type }}, {{ model.child.entity }}> builder)
     {
-        builder.WithOwner().HasForeignKey("ParentId");{{ else }}internal sealed class {{ model.resource }}Configuration : AuditableEntityConfiguration<DomainAggregate>
+        builder.WithOwner().HasForeignKey("ParentId");{{ else }}internal sealed class {{ model.resource }}Configuration : AuditableEntityConfiguration<{{ aggregate_type }}>
 {
-    protected override void ConfigureEntity(EntityTypeBuilder<DomainAggregate> builder)
+    protected override void ConfigureEntity(EntityTypeBuilder<{{ aggregate_type }}> builder)
     {
         builder.HasKey(item => item.Id);{{ end }}
 

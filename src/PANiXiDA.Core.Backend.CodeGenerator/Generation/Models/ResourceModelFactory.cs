@@ -91,6 +91,9 @@ internal static class ResourceModelFactory
         }
 
         var routeId = char.ToLowerInvariant(parent.Resource[0]) + parent.Resource[1..] + "Id";
+        var conflictingImports = id.Namespace != parent.Domain
+            && new[] { $"{id.Namespace}.{parent.Resource}", $"{parent.Domain}.{entity.Name}", $"{parent.Domain}.{id.Name}" }
+                .Any(fullName => domainAssembly.GetType(fullName) is not null);
         var child = new ChildModel(
             parent.Domain,
             parent.Feature,
@@ -99,6 +102,7 @@ internal static class ResourceModelFactory
             routeId,
             settings.Collection,
             entity.Name,
+            conflictingImports,
             entity.Name.Pluralize(inputIsKnownToBeSingular: false).Underscore().ToLowerInvariant(),
             [.. CodeFieldFactory.GetFields(aggregate, nullability)
                 .Where(field => field.RequiredString || (field.Composite && !field.Optional))],

@@ -17,13 +17,18 @@ internal sealed record ResourceModel(
 {
     public string AggregateFeature => Child?.ParentFeature ?? Feature;
 
+    public string AggregateDomain => Child?.ParentDomain ?? Domain;
+
+    public string AggregateResource => Child?.ParentResource ?? Resource;
+
     public string ReadFeature => AggregateFeature;
 
     public string WriteRepositoryParameter =>
         char.ToLowerInvariant(AggregateFeature[0]) + AggregateFeature[1..] + "Repository";
 
-    public bool RequiresWriteRepositoryAggregateAlias =>
-        WriteRepositoryNaming.RequiresAggregateAlias(Module, Feature, Resource);
+    public bool RequiresWriteAggregateAlias =>
+        WriteAggregateNaming.RequiresAggregateAlias(Module, AggregateFeature, AggregateResource)
+        || Child?.HasConflictingDomainImports == true;
 
     public string ReadDbResource => Child?.ParentResource ?? Resource;
 

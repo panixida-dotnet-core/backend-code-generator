@@ -59,6 +59,8 @@ public sealed class GenerationTests
         code.ShouldContain(source => source.Contains("productsReadRepository.GetVariantsPageAsync(", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("products/{productid:guid}/variants", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("OwnsMany(item => item.Variants", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("IEntityTypeConfiguration<DomainAggregate>", StringComparison.Ordinal)
+            && source.Contains($"using DomainAggregate = {ScratchBackend.Product};", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains(".RequireAuthorization();", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("DeleteProductMapper.ToCommand(id: id)", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("routeName: new GetProductDetailsEndpoint().Name", StringComparison.Ordinal));
@@ -70,24 +72,25 @@ public sealed class GenerationTests
         await backend.BuildLayerAsync("Presentation");
     }
 
-    [Fact(DisplayName = "Use the short aggregate name in a write repository unless it collides")]
-    public async Task UsesWriteRepositoryAliasOnlyForNameCollisions()
+    [Fact(DisplayName = "Use the short aggregate name in write repositories and EF configuration unless it collides")]
+    public async Task UsesWriteAggregateAliasOnlyForNameCollisions()
     {
         using var backend = new ScratchBackend();
-        var job = ScratchBackend.Job("IRepository", "Repository");
+        var job = ScratchBackend.Job("IRepository", "Repository", "Configuration");
         var models = job["models"]!.AsArray();
         models.Clear();
         (string Feature, string Aggregate, bool UseAlias)[] cases =
         [
             ("Warehouses", "Warehouse", false),
+            ("Contexts", "DbContext", false),
             ("Modules", "Module", true),
             ("Files", "File", true),
             ("Inventory", "Inventory", true),
             ("Persistences", "Persistence", true)
         ];
-        foreach (var (feature, aggregate, useAlias) in cases)
+        foreach (var (feature, aggregate, _) in cases)
         {
-            if (useAlias)
+            if (aggregate != "Warehouse")
             {
                 foreach (var suffix in new[] { ".cs", "Id.cs" })
                 {
@@ -112,17 +115,69 @@ public sealed class GenerationTests
         foreach (var (feature, aggregate, useAlias) in cases)
         {
             var repository = files.Single(file => Path.GetFileName(file.Path) == $"{feature}Repository.cs");
+            var configuration = files.Single(file => Path.GetFileName(file.Path) == $"{aggregate}Configuration.cs");
             var source = backend.Read(repository.Path);
+            var configurationSource = backend.Read(configuration.Path);
             if (useAlias)
             {
                 source.ShouldContain($"using DomainAggregate = {ScratchBackend.ModuleName}.Domain.{feature}.{aggregate};");
                 source.ShouldContain($"EfRepository<ModuleWriteDbContext, {aggregate}Id, DomainAggregate>");
+                configurationSource.ShouldContain($"using DomainAggregate = {ScratchBackend.ModuleName}.Domain.{feature}.{aggregate};");
+                configurationSource.ShouldContain("AuditableEntityConfiguration<DomainAggregate>");
             }
             else
             {
                 source.ShouldNotContain("using DomainAggregate");
                 source.ShouldContain($"EfRepository<ModuleWriteDbContext, {aggregate}Id, {aggregate}>");
+                configurationSource.ShouldNotContain("using DomainAggregate");
+                configurationSource.ShouldContain($"AuditableEntityConfiguration<{aggregate}>");
             }
+        }
+
+        await backend.BuildLayerAsync("Infrastructure");
+    }
+
+    [Theory(DisplayName = "Choose the aggregate reference for EF child configuration from both domain namespaces")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UsesParentAggregateTypeInChildConfiguration(bool hasConflictingType)
+    {
+        using var backend = new ScratchBackend();
+        const string warehouse = ScratchBackend.DomainDirectory + "/Warehouses/Warehouse.cs";
+        const string childDomain = ScratchBackend.ModuleName + ".Domain.Products.Entities.ProductVariants";
+        const string parentDomain = ScratchBackend.ModuleName + ".Domain.Warehouses";
+        var source = backend.Read(warehouse).Replace(
+            "    public string Name",
+            "    public IReadOnlyCollection<ProductVariant> Variants { get; } = [];\n\n    public string Name",
+            StringComparison.Ordinal);
+        backend.Write(warehouse, $"using {childDomain};\n\n{source}");
+        if (hasConflictingType)
+        {
+            backend.Write(
+                $"{ScratchBackend.DomainDirectory}/Warehouses/ProductVariantId.cs",
+                $"namespace {parentDomain};\n\npublic sealed class ProductVariantId;\n");
+        }
+
+        var job = ScratchBackend.Job("ChildConfiguration");
+        var model = job["models"]![0]!.AsObject();
+        model["aggregate"] = $"{parentDomain}.Warehouse";
+        model["route"] = "warehouses";
+        model["detailsFields"] = new JsonArray("Id");
+        model["listFields"] = new JsonArray("Id");
+
+        var files = await backend.RunAsync(job);
+
+        var configuration = backend.Read(files.Single().Path);
+        if (hasConflictingType)
+        {
+            configuration.ShouldContain($"using DomainAggregate = {parentDomain}.Warehouse;");
+            configuration.ShouldContain("OwnedNavigationBuilder<DomainAggregate, ProductVariant>");
+        }
+        else
+        {
+            configuration.ShouldNotContain("using DomainAggregate");
+            configuration.ShouldContain($"using {parentDomain};");
+            configuration.ShouldContain("OwnedNavigationBuilder<Warehouse, ProductVariant>");
         }
 
         await backend.BuildLayerAsync("Infrastructure");

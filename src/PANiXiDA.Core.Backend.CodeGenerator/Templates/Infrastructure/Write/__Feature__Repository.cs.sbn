@@ -1,4 +1,4 @@
-{{ use_alias = model.requires_write_repository_aggregate_alias }}using {{ model.domain }};
+{{ use_alias = model.requires_write_aggregate_alias }}using {{ model.domain }};
 using {{ model.domain }}.Abstractions;
 using {{ model.module }}.Infrastructure.Persistence.Core;
 
