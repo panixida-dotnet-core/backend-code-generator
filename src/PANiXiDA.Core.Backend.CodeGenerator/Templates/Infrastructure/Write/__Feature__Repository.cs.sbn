@@ -2,7 +2,7 @@ using {{ model.domain }};
 using {{ model.domain }}.Abstractions;
 using {{ model.module }}.Infrastructure.Persistence.Core;
 
-using DomainAggregate = global::{{ model.domain }}.{{ model.resource }};
+using DomainAggregate = {{ model.domain }}.{{ model.resource }};
 
 namespace {{ model.module }}.Infrastructure.Persistence.Features.{{ model.feature }}.Write;
 
