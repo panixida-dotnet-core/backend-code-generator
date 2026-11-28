@@ -77,10 +77,10 @@ public sealed class GenerationTests
             StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("partial GetProductVariantDetailsQuery ToQuery(Guid parentId, Guid id);",
             StringComparison.Ordinal));
-        code.ShouldContain(source => source.Contains("ProductDetailsReadModel productReadModel);", StringComparison.Ordinal));
-        code.ShouldContain(source => source.Contains("ProductVariantDetailsReadModel productVariantReadModel);", StringComparison.Ordinal));
-        code.ShouldContain(source => source.Contains("ProductDetailsMapper.ToResponse(productReadModel: readModel)", StringComparison.Ordinal));
-        code.ShouldContain(source => source.Contains("ProductVariantDetailsMapper.ToResponse(productVariantReadModel: readModel)",
+        code.ShouldContain(source => source.Contains("ProductDetailsReadModel readModel);", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("ProductVariantDetailsReadModel readModel);", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("ProductDetailsMapper.ToResponse(readModel: readModel)", StringComparison.Ordinal));
+        code.ShouldContain(source => source.Contains("ProductVariantDetailsMapper.ToResponse(readModel: readModel)",
             StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains("routeName: new GetProductDetailsEndpoint().Name", StringComparison.Ordinal));
         code.ShouldContain(source => source.Contains(".SetValidator(new ProductVariantListItemReadModelSortingValidator())", StringComparison.Ordinal));

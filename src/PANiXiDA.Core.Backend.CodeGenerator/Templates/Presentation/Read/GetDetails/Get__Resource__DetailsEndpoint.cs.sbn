@@ -29,6 +29,6 @@ internal sealed class Get{{ model.resource }}DetailsEndpoint : IEndpoint<{{ mode
 
         return result.ToHttpResult(onSuccess: readModel =>
             TypedResults.Ok(
-                value: {{ model.resource }}DetailsMapper.ToResponse({{ model.details_parameter }}: readModel)));
+                value: {{ model.resource }}DetailsMapper.ToResponse(readModel: readModel)));
     }
 }

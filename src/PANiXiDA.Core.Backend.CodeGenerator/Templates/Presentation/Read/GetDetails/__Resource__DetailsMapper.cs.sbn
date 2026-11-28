@@ -11,5 +11,5 @@ internal static partial class {{ model.resource }}DetailsMapper
 {{ end }}    internal static partial Get{{ model.resource }}DetailsQuery ToQuery({{ if model.child }}Guid parentId, {{ end }}Guid id);
 
     internal static partial {{ model.resource }}DetailsResponse ToResponse(
-        {{ model.resource }}DetailsReadModel {{ model.details_parameter }});
+        {{ model.resource }}DetailsReadModel readModel);
 }

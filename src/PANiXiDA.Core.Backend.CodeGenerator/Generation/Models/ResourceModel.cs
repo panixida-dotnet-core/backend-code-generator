@@ -23,9 +23,6 @@ internal sealed record ResourceModel(
 
     public string ReadFeature => AggregateFeature;
 
-    public string DetailsParameter =>
-        char.ToLowerInvariant(Resource[0]) + Resource[1..] + "ReadModel";
-
     public string WriteRepositoryParameter =>
         char.ToLowerInvariant(AggregateFeature[0]) + AggregateFeature[1..] + "Repository";
 
